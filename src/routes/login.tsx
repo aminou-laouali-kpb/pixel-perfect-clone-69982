@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useState } from 'react';
-import { useNavigate, Link, useLocation } from '@tanstack/react-router';
+import { useNavigate, Link } from '@tanstack/react-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn, KeyRound, Mail, Loader2, ArrowLeft } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { refetchAuth } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -15,8 +14,8 @@ const LoginPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get destination route from navigation state if available
-  const from = location.state?.from?.pathname || null;
+  // Redirect-back not implemented after migration to TanStack Router.
+  const from: string | null = null;
 
   const getErrorMessage = (error: unknown) => {
     return error instanceof Error ? error.message : "Une erreur est survenue lors de la connexion.";

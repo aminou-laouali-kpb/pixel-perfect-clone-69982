@@ -20,7 +20,7 @@ export interface Agent {
   whatsapp: string;
   pays: string;
   niveau_etudes: string;
-  motivation?: string;
+  motivation: string | null;
   statut: AgentStatut;
   tier: AgentTier;
   code_parrainage: string;       // unique, generated at signup

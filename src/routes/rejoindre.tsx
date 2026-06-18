@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useState } from 'react';
-import { Link, useSearchParams } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -45,8 +45,11 @@ const getErrorMessage = (error: unknown) => {
 };
 
 const RejoindrePage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const code = searchParams.get('ref') || localStorage.getItem('kpb_ref') || '';
+  const code = typeof window === 'undefined'
+    ? ''
+    : (new URLSearchParams(window.location.search).get('ref')
+        || localStorage.getItem('kpb_ref')
+        || '');
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
