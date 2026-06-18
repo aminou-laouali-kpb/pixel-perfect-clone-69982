@@ -50,16 +50,16 @@ const LoginPage: React.FC = () => {
       if (profileData) {
         // Redirect according to user role
         if (from) {
-          navigate(from, { replace: true });
+          navigate({ to: from, replace: true });
         } else if (profileData.role === 'commercial') {
-          navigate({ to: '/commercial',, { replace: true }});
+          navigate({ to: '/commercial', replace: true });
         } else if (profileData.role === 'admin') {
-          navigate({ to: '/admin',, { replace: true }});
+          navigate({ to: '/admin', replace: true });
         } else {
-          navigate({ to: '/dashboard',, { replace: true }});
+          navigate({ to: '/dashboard', replace: true });
         }
       } else {
-        navigate({ to: '/dashboard',, { replace: true }});
+        navigate({ to: '/dashboard', replace: true });
       }
     } catch (err: unknown) {
       console.error('Login error:', err);

@@ -12,7 +12,7 @@ const LandingPage: React.FC = () => {
     if (refCode) {
       const normalizedRefCode = refCode.trim().toUpperCase();
       localStorage.setItem('kpb_ref', normalizedRefCode);
-      navigate({ to: `/rejoindre?ref=${encodeURIComponent(normalizedRefCode)}`,, { replace: true }});
+      navigate({ to: `/rejoindre?ref=${encodeURIComponent(normalizedRefCode)}`, replace: true });
     }
   }, [navigate, searchParams]);
 

@@ -40,7 +40,7 @@ const ResetPasswordPage: React.FC = () => {
       // The recovery session is single-purpose: sign out so the user logs in fresh.
       await supabase.auth.signOut();
       showToast('Mot de passe mis à jour. Connectez-vous.', 'success');
-      navigate({ to: '/login',, { replace: true }});
+      navigate({ to: '/login', replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Une erreur est survenue.";
       setErrorMsg(
