@@ -15,6 +15,7 @@ import { Route as MotDePasseOublieRouteImport } from './routes/mot-de-passe-oubl
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as CandidaterRouteImport } from './routes/candidater'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedResultatRouteImport } from './routes/_authenticated/resultat'
 import { Route as AuthenticatedQuizRouteImport } from './routes/_authenticated/quiz'
@@ -52,35 +53,39 @@ const CandidaterRoute = CandidaterRouteImport.update({
   path: '/candidater',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedResultatRoute = AuthenticatedResultatRouteImport.update({
-  id: '/_authenticated/resultat',
+  id: '/resultat',
   path: '/resultat',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedQuizRoute = AuthenticatedQuizRouteImport.update({
-  id: '/_authenticated/quiz',
+  id: '/quiz',
   path: '/quiz',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/_authenticated/dashboard',
+  id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCommercialRoute = AuthenticatedCommercialRouteImport.update({
-  id: '/_authenticated/commercial',
+  id: '/commercial',
   path: '/commercial',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/_authenticated/admin',
+  id: '/admin',
   path: '/admin',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -114,6 +119,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/candidater': typeof CandidaterRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/login': typeof LoginRoute
@@ -158,6 +164,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/candidater'
     | '/confidentialite'
     | '/login'
@@ -173,17 +180,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   CandidaterRoute: typeof CandidaterRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   LoginRoute: typeof LoginRoute
   MotDePasseOublieRoute: typeof MotDePasseOublieRoute
   ReinitialiserMotDePasseRoute: typeof ReinitialiserMotDePasseRoute
   RejoindreRoute: typeof RejoindreRoute
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedQuizRoute: typeof AuthenticatedQuizRoute
-  AuthenticatedResultatRoute: typeof AuthenticatedResultatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -230,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CandidaterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -242,52 +252,67 @@ declare module '@tanstack/react-router' {
       path: '/resultat'
       fullPath: '/resultat'
       preLoaderRoute: typeof AuthenticatedResultatRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/quiz': {
       id: '/_authenticated/quiz'
       path: '/quiz'
       fullPath: '/quiz'
       preLoaderRoute: typeof AuthenticatedQuizRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/commercial': {
       id: '/_authenticated/commercial'
       path: '/commercial'
       fullPath: '/commercial'
       preLoaderRoute: typeof AuthenticatedCommercialRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedQuizRoute: typeof AuthenticatedQuizRoute
+  AuthenticatedResultatRoute: typeof AuthenticatedResultatRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedQuizRoute: AuthenticatedQuizRoute,
+  AuthenticatedResultatRoute: AuthenticatedResultatRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   CandidaterRoute: CandidaterRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   LoginRoute: LoginRoute,
   MotDePasseOublieRoute: MotDePasseOublieRoute,
   ReinitialiserMotDePasseRoute: ReinitialiserMotDePasseRoute,
   RejoindreRoute: RejoindreRoute,
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedQuizRoute: AuthenticatedQuizRoute,
-  AuthenticatedResultatRoute: AuthenticatedResultatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
