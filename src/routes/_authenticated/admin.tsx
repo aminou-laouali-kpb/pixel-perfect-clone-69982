@@ -6,8 +6,16 @@ import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/lib/supabase';
 import { Agent, Commission, Lead, RrState } from '@/types';
 import { formatCurrency } from '@/lib/utils';
-import { Users, FileCheck, CheckCircle2, Wallet, Users2, Check, Loader2, UserPlus, Trash2, Save } from 'lucide-react';
+import { Users, FileCheck, CheckCircle2, Wallet, Users2, Check, Loader2, UserPlus, Trash2, Save, Shield } from 'lucide-react';
 import TierBadge from '@/components/agent/TierBadge';
+
+type AdminUserRow = {
+  id: string;
+  email: string;
+  nom: string | null;
+  role: 'agent' | 'commercial' | 'admin';
+  created_at: string;
+};
 
 const inputCls =
   'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-500';
@@ -54,13 +62,15 @@ const CommercialRow: React.FC<{
 };
 
 const AdminPage: React.FC = () => {
-  const { profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [rrStates, setRrStates] = useState<RrState[]>([]);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingCommId, setUpdatingCommId] = useState<string | null>(null);
   const [busyCommercial, setBusyCommercial] = useState<string | null>(null);
@@ -98,6 +108,14 @@ const AdminPage: React.FC = () => {
         .order('id', { ascending: true });
 
       if (rrData) setRrStates(rrData);
+
+      // 5. Fetch all users (admin-only RPC)
+      const { data: usersData, error: usersErr } = await supabase.rpc('list_users_for_admin');
+      if (usersErr) {
+        console.error('Error fetching users:', usersErr);
+      } else if (usersData) {
+        setUsers(usersData as AdminUserRow[]);
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -129,6 +147,25 @@ const AdminPage: React.FC = () => {
       showToast("Erreur lors de la validation du paiement.", 'error');
     } finally {
       setUpdatingCommId(null);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: AdminUserRow['role']) => {
+    setUpdatingRoleUserId(userId);
+    try {
+      const { error } = await supabase.rpc('set_user_role', {
+        p_user_id: userId,
+        p_role: newRole,
+      });
+      if (error) throw error;
+      await fetchData();
+      showToast('Rôle mis à jour.', 'success');
+    } catch (err) {
+      console.error('Error changing role:', err);
+      const msg = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du rôle.';
+      showToast(msg, 'error');
+    } finally {
+      setUpdatingRoleUserId(null);
     }
   };
 
@@ -481,6 +518,78 @@ const AdminPage: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Users & Roles management */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-slate-500" />
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Utilisateurs & Rôles</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Promouvez un utilisateur en commercial ou admin. Pour qu'un commercial reçoive des leads,
+                ajoutez-le aussi dans la section Round-Robin avec le <strong>même email</strong>.
+              </p>
+            </div>
+          </div>
+
+          {users.length === 0 ? (
+            <p className="text-sm text-slate-400">Aucun utilisateur.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th className="pb-3">Nom</th>
+                    <th className="pb-3">Email</th>
+                    <th className="pb-3">Rôle actuel</th>
+                    <th className="pb-3 text-right">Changer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map(u => {
+                    const isSelf = user?.id === u.id;
+                    const busy = updatingRoleUserId === u.id;
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 pr-2 font-semibold text-slate-800">
+                          {u.nom || '—'}
+                          {isSelf && <span className="ml-2 text-[10px] uppercase text-slate-400">(vous)</span>}
+                        </td>
+                        <td className="py-3 pr-2 text-slate-500">{u.email}</td>
+                        <td className="py-3 pr-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
+                            u.role === 'admin'
+                              ? 'bg-purple-50 text-purple-700 border-purple-100'
+                              : u.role === 'commercial'
+                              ? 'bg-blue-50 text-blue-700 border-blue-100'
+                              : 'bg-slate-50 text-slate-600 border-slate-100'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            {busy && <Loader2 className="animate-spin h-3.5 w-3.5 text-slate-400" />}
+                            <select
+                              value={u.role}
+                              disabled={isSelf || busy}
+                              onChange={e => handleChangeRole(u.id, e.target.value as AdminUserRow['role'])}
+                              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <option value="agent">agent</option>
+                              <option value="commercial">commercial</option>
+                              <option value="admin">admin</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>

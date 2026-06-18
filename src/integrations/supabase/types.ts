@@ -261,6 +261,23 @@ export type Database = {
           rang: number
         }[]
       }
+      list_users_for_admin: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          nom: string
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
+      set_user_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["user_role"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       submit_quiz_attempt: { Args: { p_answers: number[] }; Returns: Json }
       submit_referral_lead: {
         Args: {
