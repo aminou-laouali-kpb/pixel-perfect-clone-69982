@@ -74,10 +74,10 @@ const RejoindrePage: React.FC = () => {
         p_code: code,
         p_nom: data.nom,
         p_whatsapp: data.whatsapp,
-        p_email: data.email || null,
+        p_email: data.email || undefined,
         p_pays: data.pays,
         p_destination: data.destination,
-        p_notes: data.message || null,
+        p_notes: data.message || undefined,
       });
 
       if (error) throw new Error(error.message);
