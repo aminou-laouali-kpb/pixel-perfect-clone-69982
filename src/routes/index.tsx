@@ -1,20 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Award, Compass, DollarSign, Gift, ArrowRight, ShieldCheck, BookOpen } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const refCode = searchParams.get('ref');
+    if (typeof window === 'undefined') return;
+    const refCode = new URLSearchParams(window.location.search).get('ref');
     if (refCode) {
       const normalizedRefCode = refCode.trim().toUpperCase();
       localStorage.setItem('kpb_ref', normalizedRefCode);
-      navigate({ to: `/rejoindre?ref=${encodeURIComponent(normalizedRefCode)}`, replace: true });
+      navigate({ to: '/rejoindre', replace: true });
     }
-  }, [navigate, searchParams]);
+  }, [navigate]);
 
   return (
     <div className="flex flex-col bg-navy-950 text-white min-h-screen">
