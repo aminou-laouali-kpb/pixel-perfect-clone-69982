@@ -56,7 +56,8 @@ export const useQuiz = () => {
       // Refresh the auth context so the agent status reflects the result.
       await refetchAuth();
 
-      const serverScore = typeof data?.score === 'number' ? data.score : score;
+      const parsed = data as { score?: number } | null;
+      const serverScore = typeof parsed?.score === 'number' ? parsed.score : score;
       return serverScore;
     } catch (err) {
       console.error('Erreur lors de la soumission du quiz:', err);
