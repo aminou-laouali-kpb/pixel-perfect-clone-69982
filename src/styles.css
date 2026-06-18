@@ -5,17 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * KPB Education — Ambassador programme.
+ * Dark navy + brand gold. All colors are CSS variables, exposed as
+ * Tailwind utilities via @theme inline (e.g. bg-navy-900, text-gold-400).
  */
 
 @theme inline {
@@ -59,77 +51,89 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand navy scale (dark theme base) */
+  --color-navy-50:  #f4f6fa;
+  --color-navy-100: #e8ecf3;
+  --color-navy-200: #ccd7e6;
+  --color-navy-300: #a1b8d3;
+  --color-navy-400: #6f93be;
+  --color-navy-500: #4c74a7;
+  --color-navy-600: #3a5c8c;
+  --color-navy-700: #304a72;
+  --color-navy-800: #1e2e4a;
+  --color-navy-850: #0f172a;
+  --color-navy-900: #111827;
+  --color-navy-950: #070a13;
+
+  /* Brand gold scale (accent) */
+  --color-gold-50:  #fdfbeb;
+  --color-gold-100: #fcf6c8;
+  --color-gold-200: #f9ec8d;
+  --color-gold-300: #f5da4d;
+  --color-gold-400: #f0c220;
+  --color-gold-500: #d9a110;
+  --color-gold-600: #b77a0b;
+  --color-gold-700: #92560b;
+  --color-gold-800: #76430e;
+  --color-gold-900: #643710;
+  --color-gold-950: #3a1c05;
+
+  --animate-fade-in-up: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-pulse-gold: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --radius: 0.75rem;
+  /* Dark navy base */
+  --background: #070a13;
+  --foreground: #f4f6fa;
+  --card: #111827;
+  --card-foreground: #f4f6fa;
+  --popover: #111827;
+  --popover-foreground: #f4f6fa;
+  --primary: #d9a110;
+  --primary-foreground: #070a13;
+  --secondary: #1e2e4a;
+  --secondary-foreground: #f4f6fa;
+  --muted: #1e2e4a;
+  --muted-foreground: #a1b8d3;
+  --accent: #1e2e4a;
+  --accent-foreground: #f0c220;
+  --destructive: #e11d48;
+  --destructive-foreground: #f4f6fa;
+  --border: #1e2e4a;
+  --input: #1e2e4a;
+  --ring: #d9a110;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --sidebar: #111827;
+  --sidebar-foreground: #f4f6fa;
+  --sidebar-primary: #d9a110;
+  --sidebar-primary-foreground: #070a13;
+  --sidebar-accent: #1e2e4a;
+  --sidebar-accent-foreground: #f0c220;
+  --sidebar-border: #1e2e4a;
+  --sidebar-ring: #d9a110;
 }
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    border-color: var(--color-gold-500);
+    box-shadow: 0 0 0 0 rgba(217, 161, 16, 0.4);
+  }
+  50% {
+    border-color: var(--color-gold-400);
+    box-shadow: 0 0 12px 4px rgba(240, 194, 32, 0.2);
+  }
 }
 
 @layer base {
@@ -140,5 +144,6 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 }
