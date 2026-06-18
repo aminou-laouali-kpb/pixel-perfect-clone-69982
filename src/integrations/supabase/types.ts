@@ -14,16 +14,279 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agents: {
+        Row: {
+          code_parrainage: string
+          created_at: string
+          email: string
+          id: string
+          motivation: string | null
+          niveau_etudes: string
+          nom: string
+          parrain_id: string | null
+          pays: string
+          placements_count: number
+          quiz_passed_at: string | null
+          quiz_retry_at: string | null
+          quiz_score: number | null
+          statut: Database["public"]["Enums"]["agent_statut"]
+          tier: Database["public"]["Enums"]["agent_tier"]
+          whatsapp: string
+        }
+        Insert: {
+          code_parrainage: string
+          created_at?: string
+          email: string
+          id: string
+          motivation?: string | null
+          niveau_etudes: string
+          nom: string
+          parrain_id?: string | null
+          pays: string
+          placements_count?: number
+          quiz_passed_at?: string | null
+          quiz_retry_at?: string | null
+          quiz_score?: number | null
+          statut?: Database["public"]["Enums"]["agent_statut"]
+          tier?: Database["public"]["Enums"]["agent_tier"]
+          whatsapp: string
+        }
+        Update: {
+          code_parrainage?: string
+          created_at?: string
+          email?: string
+          id?: string
+          motivation?: string | null
+          niveau_etudes?: string
+          nom?: string
+          parrain_id?: string | null
+          pays?: string
+          placements_count?: number
+          quiz_passed_at?: string | null
+          quiz_retry_at?: string | null
+          quiz_score?: number | null
+          statut?: Database["public"]["Enums"]["agent_statut"]
+          tier?: Database["public"]["Enums"]["agent_tier"]
+          whatsapp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_parrain_id_fkey"
+            columns: ["parrain_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commissions: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          lead_id: string | null
+          montant: number
+          statut: Database["public"]["Enums"]["commission_statut"]
+          type: Database["public"]["Enums"]["commission_type"]
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          montant: number
+          statut?: Database["public"]["Enums"]["commission_statut"]
+          type: Database["public"]["Enums"]["commission_type"]
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          montant?: number
+          statut?: Database["public"]["Enums"]["commission_statut"]
+          type?: Database["public"]["Enums"]["commission_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          agent_id: string
+          assigned_to: string
+          bonus_paid: boolean
+          commission_amount: number
+          created_at: string
+          destination: string
+          email: string | null
+          id: string
+          montant_service: number | null
+          nom: string
+          notes: string | null
+          pays: string
+          statut: Database["public"]["Enums"]["lead_statut"]
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          agent_id: string
+          assigned_to: string
+          bonus_paid?: boolean
+          commission_amount?: number
+          created_at?: string
+          destination: string
+          email?: string | null
+          id?: string
+          montant_service?: number | null
+          nom: string
+          notes?: string | null
+          pays: string
+          statut?: Database["public"]["Enums"]["lead_statut"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          agent_id?: string
+          assigned_to?: string
+          bonus_paid?: boolean
+          commission_amount?: number
+          created_at?: string
+          destination?: string
+          email?: string | null
+          id?: string
+          montant_service?: number | null
+          nom?: string
+          notes?: string | null
+          pays?: string
+          statut?: Database["public"]["Enums"]["lead_statut"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nom: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          nom: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nom?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      rr_state: {
+        Row: {
+          commercial: string
+          email: string
+          id: number
+          leads_total: number
+          rr_index: number
+          whatsapp: string
+        }
+        Insert: {
+          commercial: string
+          email: string
+          id?: number
+          leads_total?: number
+          rr_index?: number
+          whatsapp: string
+        }
+        Update: {
+          commercial?: string
+          email?: string
+          id?: number
+          leads_total?: number
+          rr_index?: number
+          whatsapp?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      assign_lead_round_robin: { Args: { p_lead_id: string }; Returns: string }
+      create_placement_commission: {
+        Args: { p_lead_id: string }
+        Returns: undefined
+      }
+      current_commercial_name: { Args: never; Returns: string }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_agent_rank: { Args: never; Returns: number }
+      get_leaderboard: {
+        Args: { p_end: string; p_limit?: number; p_start: string }
+        Returns: {
+          placements: number
+          prenom: string
+          rang: number
+        }[]
+      }
+      submit_quiz_attempt: { Args: { p_answers: number[] }; Returns: Json }
+      submit_referral_lead: {
+        Args: {
+          p_code: string
+          p_destination?: string
+          p_email?: string
+          p_nom: string
+          p_notes?: string
+          p_pays?: string
+          p_whatsapp: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      agent_statut: "quiz_pending" | "quiz_failed" | "essai" | "officiel"
+      agent_tier: "bronze" | "argent" | "elite"
+      commission_statut: "pending" | "paid"
+      commission_type: "bonus_dossier" | "placement" | "bonus_palier"
+      lead_statut:
+        | "nouveau"
+        | "contacte"
+        | "qualifie"
+        | "acompte_paye"
+        | "place"
+      user_role: "agent" | "commercial" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +413,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      agent_statut: ["quiz_pending", "quiz_failed", "essai", "officiel"],
+      agent_tier: ["bronze", "argent", "elite"],
+      commission_statut: ["pending", "paid"],
+      commission_type: ["bonus_dossier", "placement", "bonus_palier"],
+      lead_statut: ["nouveau", "contacte", "qualifie", "acompte_paye", "place"],
+      user_role: ["agent", "commercial", "admin"],
+    },
   },
 } as const
