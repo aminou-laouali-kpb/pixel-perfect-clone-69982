@@ -520,6 +520,78 @@ const AdminPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Users & Roles management */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-slate-500" />
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Utilisateurs & Rôles</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Promouvez un utilisateur en commercial ou admin. Pour qu'un commercial reçoive des leads,
+                ajoutez-le aussi dans la section Round-Robin avec le <strong>même email</strong>.
+              </p>
+            </div>
+          </div>
+
+          {users.length === 0 ? (
+            <p className="text-sm text-slate-400">Aucun utilisateur.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th className="pb-3">Nom</th>
+                    <th className="pb-3">Email</th>
+                    <th className="pb-3">Rôle actuel</th>
+                    <th className="pb-3 text-right">Changer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map(u => {
+                    const isSelf = user?.id === u.id;
+                    const busy = updatingRoleUserId === u.id;
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 pr-2 font-semibold text-slate-800">
+                          {u.nom || '—'}
+                          {isSelf && <span className="ml-2 text-[10px] uppercase text-slate-400">(vous)</span>}
+                        </td>
+                        <td className="py-3 pr-2 text-slate-500">{u.email}</td>
+                        <td className="py-3 pr-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
+                            u.role === 'admin'
+                              ? 'bg-purple-50 text-purple-700 border-purple-100'
+                              : u.role === 'commercial'
+                              ? 'bg-blue-50 text-blue-700 border-blue-100'
+                              : 'bg-slate-50 text-slate-600 border-slate-100'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="inline-flex items-center gap-2">
+                            {busy && <Loader2 className="animate-spin h-3.5 w-3.5 text-slate-400" />}
+                            <select
+                              value={u.role}
+                              disabled={isSelf || busy}
+                              onChange={e => handleChangeRole(u.id, e.target.value as AdminUserRow['role'])}
+                              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <option value="agent">agent</option>
+                              <option value="commercial">commercial</option>
+                              <option value="admin">admin</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
