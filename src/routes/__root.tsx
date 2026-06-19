@@ -86,6 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Devenez ambassadeur KPB Education, présentez vos proches à nos conseillers et gagnez des commissions sur chaque inscription." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "KPB Education — Programme Ambassadeur" },
+      { name: "twitter:description", content: "Devenez ambassadeur KPB Education, présentez vos proches à nos conseillers et gagnez des commissions sur chaque inscription." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1a71ab4e-9554-459c-ace2-93cd6b5736fc/id-preview-840d15f7--fe1f5bd3-4b87-4749-acac-476fa8c555f4.lovable.app-1781871012501.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1a71ab4e-9554-459c-ace2-93cd6b5736fc/id-preview-840d15f7--fe1f5bd3-4b87-4749-acac-476fa8c555f4.lovable.app-1781871012501.png" },
     ],
     links: [
       {
