@@ -261,6 +261,13 @@ export type Database = {
           rang: number
         }[]
       }
+      list_agents_basic: {
+        Args: never
+        Returns: {
+          id: string
+          nom: string
+        }[]
+      }
       list_users_for_admin: {
         Args: never
         Returns: {

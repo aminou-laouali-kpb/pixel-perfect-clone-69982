@@ -36,11 +36,9 @@ const CommercialPage: React.FC = () => {
       
       if (leadsData) setLeads(leadsData);
 
-      // 2. Fetch agents to resolve names
-      const { data: agentsData } = await supabase
-        .from('agents')
-        .select('id, nom');
-      
+      // 2. Fetch agents (id + nom only) via security-restricted RPC
+      const { data: agentsData } = await supabase.rpc('list_agents_basic');
+
       if (agentsData) setAgents(agentsData);
 
       // 3. Fetch round robin states
