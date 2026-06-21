@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Navigate } from "@tanstack/react-router";
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
@@ -96,6 +97,11 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Onboarding gate: agents must complete the quiz before accessing the dashboard.
+  if (agent.statut === 'quiz_pending' || agent.statut === 'quiz_failed') {
+    return <Navigate to="/quiz" replace />;
   }
 
   // Calculate statistics
