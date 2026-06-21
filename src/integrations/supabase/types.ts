@@ -268,6 +268,14 @@ export type Database = {
           nom: string
         }[]
       }
+      list_rr_state_basic: {
+        Args: never
+        Returns: {
+          commercial: string
+          id: number
+          leads_total: number
+        }[]
+      }
       list_users_for_admin: {
         Args: never
         Returns: {
