@@ -50,7 +50,6 @@ const CandidaterPage: React.FC = () => {
   const { refetchAuth } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [referrerCode] = useState<string | null>(() => localStorage.getItem('kpb_ref'));
 
   const { register, handleSubmit, formState: { errors } } = useForm<CandidaterFormValues>({
@@ -98,14 +97,16 @@ const CandidaterPage: React.FC = () => {
       // Referral code consumed.
       localStorage.removeItem('kpb_ref');
 
-      if (authData.session) {
-        // Auto-confirmed: a session is ready, go straight to the quiz.
-        await refetchAuth();
-        navigate({ to: '/quiz' });
-      } else {
-        // Email confirmation is required before a session is issued.
-        setNeedsConfirmation(true);
+      if (!authData.session) {
+        // Should not happen (auto-confirm is enabled), but try sign-in as a fallback.
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+        if (signInError) throw new Error(signInError.message);
       }
+      await refetchAuth();
+      navigate({ to: '/quiz' });
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -167,26 +168,6 @@ const CandidaterPage: React.FC = () => {
 
         {/* Form Panel */}
         <div className="md:col-span-3">
-          {needsConfirmation ? (
-            <div className="flex h-full flex-col justify-center text-center space-y-5 py-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <CheckCircle2 className="h-9 w-9 text-emerald-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Vérifiez votre boîte mail</h3>
-              <p className="text-sm text-navy-300 leading-relaxed max-w-sm mx-auto">
-                Votre candidature est enregistrée. Confirmez votre adresse email via le lien
-                que nous venons de vous envoyer, puis connectez-vous pour passer le quiz de qualification.
-              </p>
-              <div>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center rounded-xl bg-gold-500 px-6 py-3 text-sm font-bold text-navy-950 hover:bg-gold-400 transition-all"
-                >
-                  Aller à la connexion
-                </Link>
-              </div>
-            </div>
-          ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-gold-500" />
@@ -338,7 +319,6 @@ const CandidaterPage: React.FC = () => {
               </Link>
             </div>
           </form>
-          )}
         </div>
       </div>
     </div>
