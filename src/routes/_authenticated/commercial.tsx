@@ -41,12 +41,10 @@ const CommercialPage: React.FC = () => {
 
       if (agentsData) setAgents(agentsData);
 
-      // 3. Fetch round robin states
-      const { data: rrData } = await supabase
-        .from('rr_state')
-        .select('*')
-        .order('id', { ascending: true });
-      
+      // 3. Fetch round robin states via security-restricted RPC
+      //    (no email/whatsapp PII exposure between commercials)
+      const { data: rrData } = await supabase.rpc('list_rr_state_basic');
+
       if (rrData) {
         setRrStates(rrData);
         // Find next commercial based on the least leads_total, ordering by leads_total asc, id asc
