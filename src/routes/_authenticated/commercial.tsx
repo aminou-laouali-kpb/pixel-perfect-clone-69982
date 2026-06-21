@@ -3,7 +3,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate } from '@tanstack/react-router';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
-import { Lead, LeadStatut, RrState } from '@/types';
+import { Lead, LeadStatut } from '@/types';
+
+type RrStateBasic = { id: number; commercial: string; leads_total: number };
 import { STATUTS_LEAD } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import { User, ClipboardList, TrendingUp, Sparkles, Loader2, Search } from 'lucide-react';
@@ -17,7 +19,7 @@ const CommercialPage: React.FC = () => {
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agents, setAgents] = useState<{ id: string; nom: string }[]>([]);
-  const [rrStates, setRrStates] = useState<RrState[]>([]);
+  const [rrStates, setRrStates] = useState<RrStateBasic[]>([]);
   const [nextCommercial, setNextCommercial] = useState<string>('Josphin');
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('Tous');
@@ -41,12 +43,10 @@ const CommercialPage: React.FC = () => {
 
       if (agentsData) setAgents(agentsData);
 
-      // 3. Fetch round robin states
-      const { data: rrData } = await supabase
-        .from('rr_state')
-        .select('*')
-        .order('id', { ascending: true });
-      
+      // 3. Fetch round robin states via security-restricted RPC
+      //    (no email/whatsapp PII exposure between commercials)
+      const { data: rrData } = await supabase.rpc('list_rr_state_basic');
+
       if (rrData) {
         setRrStates(rrData);
         // Find next commercial based on the least leads_total, ordering by leads_total asc, id asc
