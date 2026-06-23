@@ -1,32 +1,27 @@
-## Cause
+## Résultat du check global
 
-Quand un utilisateur connecté charge le dashboard, `useAuth` lit `public.profiles`. La policy RLS de `profiles` appelle `public.current_user_role()`. Or, lors d'une récente migration sécurité, le droit `EXECUTE` sur cette fonction a été retiré au rôle `authenticated`. Résultat : chaque requête sur `profiles` renvoie `403 permission denied for function current_user_role`, donc `profile` et `agent` sont `null` → le dashboard affiche « Profil agent introuvable ».
+### Statut: ✅ Globalement OK, aucun bug bloquant détecté
 
-Visible dans les network logs :
-```
-GET /rest/v1/profiles?... → 403
-{"code":"42501","message":"permission denied for function current_user_role"}
-```
+**Scanners de sécurité (Wiz / Supabase / connecteurs)**
+- 0 finding actif. Le dernier scan complet est propre.
 
-## Correction (1 migration SQL)
+**Linter base de données — 14 avertissements (tous WARN, aucun ERROR)**
+Tous concernent le même motif: « SECURITY DEFINER function callable par anon/authenticated ». Ce sont les fonctions RPC volontairement exposées:
+- `current_user_role`, `current_commercial_name` (lues par les policies RLS — doivent rester EXECUTE pour `authenticated`)
+- `submit_quiz_attempt`, `submit_referral_lead`, `set_user_role`, `assign_lead_round_robin`, `get_leaderboard`, `list_users_for_admin`, `list_agents_basic`, `list_rr_state_basic`, `get_agent_rank`, `create_placement_commission`
 
-Re-accorder l'exécution des fonctions utilisées par les policies RLS aux rôles applicatifs, et révoquer l'accès à `PUBLIC` :
+Ces fonctions vérifient toutes en interne le rôle de l'appelant (`current_user_role() = 'admin'`, `auth.uid() is null`, etc.) avant d'agir. Le WARN est un rappel générique du linter, pas une vulnérabilité — l'app ne peut pas fonctionner sans ces RPCs.
 
-```sql
-REVOKE EXECUTE ON FUNCTION public.current_user_role() FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION public.current_user_role() TO authenticated, service_role;
+**Routes & front**
+- Toutes les routes attendues présentes (`/login`, `/candidater`, `/_authenticated/*`, etc.).
+- Aucune erreur runtime dans les logs du serveur de dev.
+- Le correctif récent du dashboard (redirection `quiz_pending` → `/quiz`) est en place.
+- Le correctif récent des GRANT EXECUTE sur `current_user_role` / `current_commercial_name` est en place.
 
-REVOKE EXECUTE ON FUNCTION public.current_commercial_name() FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION public.current_commercial_name() TO authenticated, service_role;
-```
+### Action proposée
 
-(Les fonctions sont `SECURITY DEFINER` donc le retrait à `PUBLIC` reste safe : seul `authenticated` peut les invoquer, et elles continuent à n'exposer que la ligne du caller.)
+Aucune. L'application est saine. Je peux:
+1. Ne rien faire (recommandé).
+2. Documenter explicitement dans la mémoire sécurité que les 14 WARN du linter sont intentionnels, pour que les futurs scans ne les remontent plus comme suspects.
 
-## Vérification
-
-Après migration :
-1. Recharger `/dashboard` connecté en agent → la requête `profiles` renvoie 200, `agent` est chargé, le tableau de bord s'affiche.
-2. Recharger `/admin` connecté en admin → liste utilisateurs OK (utilise aussi `current_user_role`).
-3. Re-tester `/commercial` → la RPC `list_rr_state_basic` répond.
-
-Aucun changement de code applicatif n'est nécessaire.
+Dis-moi si tu veux que j'applique l'option 2, sinon on en reste là.
