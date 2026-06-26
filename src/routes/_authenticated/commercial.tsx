@@ -8,9 +8,21 @@ import { Lead, LeadStatut } from '@/types';
 type RrStateBasic = { id: number; commercial: string; leads_total: number };
 import { STATUTS_LEAD } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
-import { User, ClipboardList, TrendingUp, Sparkles, Loader2, Search } from 'lucide-react';
+import { User, ClipboardList, TrendingUp, Sparkles, Loader2, Search, UserPlus } from 'lucide-react';
 import RoundRobinIndicator from '@/components/commercial/RoundRobinIndicator';
 import LeadCard from '@/components/commercial/LeadCard';
+import { useServerFn } from '@tanstack/react-start';
+import { inviteAgent } from '@/lib/agents.functions';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const CommercialPage: React.FC = () => {
   const { profile, loading: authLoading } = useAuth();
@@ -27,6 +39,35 @@ const CommercialPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isSimulating, setIsSimulating] = useState(false);
   const [newLeadId, setNewLeadId] = useState<string | null>(null);
+
+  // Add-agent dialog state
+  const inviteAgentFn = useServerFn(inviteAgent);
+  const [addAgentOpen, setAddAgentOpen] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const emptyForm = { nom: '', email: '', whatsapp: '', pays: '', niveau_etudes: '' };
+  const [agentForm, setAgentForm] = useState(emptyForm);
+
+  const handleInviteAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsInviting(true);
+    try {
+      const res = await inviteAgentFn({
+        data: {
+          ...agentForm,
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      showToast(`Invitation envoyée à ${res.email} (code ${res.code_parrainage}).`, 'success');
+      setAgentForm(emptyForm);
+      setAddAgentOpen(false);
+      await fetchData();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'invitation.";
+      showToast(msg, 'error');
+    } finally {
+      setIsInviting(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -271,8 +312,15 @@ const CommercialPage: React.FC = () => {
             </p>
           </div>
           {/* Outil de démonstration : visible uniquement en développement. */}
-          {import.meta.env.DEV && (
-            <div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setAddAgentOpen(true)}
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-all shadow-md shadow-emerald-500/10"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Ajouter un agent
+            </button>
+            {import.meta.env.DEV && (
               <button
                 onClick={handleSimulateLead}
                 disabled={isSimulating}
@@ -290,8 +338,8 @@ const CommercialPage: React.FC = () => {
                   </>
                 )}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Round Robin indicator — vue d'ensemble réservée à l'admin */}
@@ -337,6 +385,94 @@ const CommercialPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Add-agent dialog */}
+        <Dialog open={addAgentOpen} onOpenChange={setAddAgentOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ajouter un agent</DialogTitle>
+              <DialogDescription>
+                Un email d'invitation sera envoyé à l'agent pour qu'il définisse son mot de passe et se connecte.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleInviteAgent} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="agent-nom">Nom complet</Label>
+                <Input
+                  id="agent-nom"
+                  required
+                  minLength={2}
+                  value={agentForm.nom}
+                  onChange={e => setAgentForm(f => ({ ...f, nom: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="agent-email">Email</Label>
+                <Input
+                  id="agent-email"
+                  type="email"
+                  required
+                  value={agentForm.email}
+                  onChange={e => setAgentForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="agent-whatsapp">WhatsApp</Label>
+                <Input
+                  id="agent-whatsapp"
+                  required
+                  placeholder="+227 ..."
+                  value={agentForm.whatsapp}
+                  onChange={e => setAgentForm(f => ({ ...f, whatsapp: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="agent-pays">Pays</Label>
+                  <Input
+                    id="agent-pays"
+                    required
+                    value={agentForm.pays}
+                    onChange={e => setAgentForm(f => ({ ...f, pays: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="agent-niveau">Niveau d'études</Label>
+                  <Input
+                    id="agent-niveau"
+                    required
+                    placeholder="Bac, Licence..."
+                    value={agentForm.niveau_etudes}
+                    onChange={e => setAgentForm(f => ({ ...f, niveau_etudes: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAddAgentOpen(false)}
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isInviting}
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isInviting ? (
+                    <>
+                      <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                      Envoi...
+                    </>
+                  ) : (
+                    "Envoyer l'invitation"
+                  )}
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Leads grid */}
         <div className="space-y-6">
