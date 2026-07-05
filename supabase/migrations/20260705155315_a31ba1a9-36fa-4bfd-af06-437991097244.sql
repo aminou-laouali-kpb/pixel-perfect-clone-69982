@@ -1,0 +1,2 @@
+CREATE POLICY "Admin peut supprimer des agents" ON public.agents FOR DELETE USING (public.current_user_role() = 'admin');
+CREATE POLICY "Admin peut supprimer des commissions" ON public.commissions FOR DELETE USING (public.current_user_role() = 'admin');
