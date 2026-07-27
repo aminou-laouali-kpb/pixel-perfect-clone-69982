@@ -46,6 +46,7 @@ const LandingPage: React.FC = () => {
               </Link>
               <Link
                 to="/login"
+                search={{ redirect: undefined }}
                 className="inline-flex items-center justify-center rounded-xl border border-navy-700 bg-navy-900/60 px-8 py-4 text-lg font-semibold text-navy-200 transition-colors hover:bg-navy-900 hover:text-white"
               >
                 Espace agent

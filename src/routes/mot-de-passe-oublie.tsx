@@ -34,6 +34,7 @@ const ForgotPasswordPage: React.FC = () => {
       <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
         <Link
           to="/login"
+          search={{ redirect: undefined }}
           className="inline-flex items-center text-sm font-semibold text-navy-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -55,6 +56,7 @@ const ForgotPasswordPage: React.FC = () => {
             </p>
             <Link
               to="/login"
+              search={{ redirect: undefined }}
               className="inline-flex items-center justify-center rounded-xl bg-gold-500 px-6 py-3 text-sm font-bold text-navy-950 hover:bg-gold-400 transition-all"
             >
               Retour à la connexion

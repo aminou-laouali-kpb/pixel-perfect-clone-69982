@@ -358,6 +358,7 @@ const CandidaterPage: React.FC = () => {
               Vous avez déjà un compte ?{" "}
               <Link
                 to="/login"
+                search={{ redirect: undefined }}
                 className="text-gold-400 hover:text-gold-300 font-semibold underline"
               >
                 Connectez-vous ici

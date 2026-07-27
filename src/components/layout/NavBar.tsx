@@ -112,6 +112,7 @@ export const NavBar: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <Link
                   to="/login"
+                  search={{ redirect: undefined }}
                   className="text-sm font-medium text-navy-300 transition-colors hover:text-gold-400"
                 >
                   Connexion
@@ -212,6 +213,7 @@ export const NavBar: React.FC = () => {
               <div className="mt-4 space-y-2 border-t border-navy-800 px-3 pt-4">
                 <Link
                   to="/login"
+                  search={{ redirect: undefined }}
                   onClick={() => setIsOpen(false)}
                   className="block rounded-md py-2 text-center text-sm font-medium text-navy-300 hover:text-white"
                 >
