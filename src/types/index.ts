@@ -3,19 +3,9 @@ export type AgentStatut = "quiz_pending" | "quiz_failed" | "essai" | "officiel";
 export type AgentTier = "bronze" | "argent" | "elite";
 export type LeadStatut = "nouveau" | "contacte" | "qualifie" | "acompte_paye" | "place";
 export type CommissionType =
-  | "placement"
-  | "apport_ecole"
-  | "bonus_palier"
-  | "prime_scolarite"
-  | "bonus_dossier";
+  "placement" | "apport_ecole" | "bonus_palier" | "prime_scolarite" | "bonus_dossier";
 export type CommissionStatut =
-  | "pending"
-  | "attente_ecole"
-  | "payable"
-  | "paid"
-  | "gelee"
-  | "annulee"
-  | "caduque";
+  "pending" | "attente_ecole" | "payable" | "paid" | "gelee" | "annulee" | "caduque";
 
 export interface Profile {
   id: string;
