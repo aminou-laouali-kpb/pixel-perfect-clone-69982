@@ -162,6 +162,54 @@ const CommercialPage: React.FC = () => {
     }
   };
 
+  const handleValidatePlacement = async (args: {
+    leadId: string;
+    montant: number;
+    justificatif: string;
+    campusId: string | null;
+    commissionAttendue: number | null;
+  }) => {
+    try {
+      const { error } = await supabase.rpc("validate_placement", {
+        p_lead_id: args.leadId,
+        p_montant_service: args.montant,
+        p_justificatif_path: args.justificatif,
+        p_ecole_campus_id: args.campusId ?? undefined,
+        p_ecole_commission_attendue: args.commissionAttendue ?? undefined,
+        p_ecole_commission_devise: "XOF",
+      });
+      if (error) throw error;
+      await refetch();
+      showToast("Placement validé — commissions service + apport école créées.", "success");
+    } catch (err) {
+      logger.error("Error validating placement", err);
+      showToast(
+        err instanceof Error ? err.message : "Erreur lors de la validation du placement.",
+        "error",
+      );
+      throw err;
+    }
+  };
+
+  const handleMarkScolariteSoldee = async (leadId: string, justificatif: string) => {
+    try {
+      const { error } = await supabase.rpc("mark_scolarite_soldee", {
+        p_lead_id: leadId,
+        p_justificatif_path: justificatif,
+      });
+      if (error) throw error;
+      await refetch();
+      showToast("Scolarité soldée — prime créée si campus éligible.", "success");
+    } catch (err) {
+      logger.error("Error marking scolarite", err);
+      showToast(
+        err instanceof Error ? err.message : "Erreur lors de l'enregistrement scolarité.",
+        "error",
+      );
+      throw err;
+    }
+  };
+
   // Simulate a new lead creation
   const handleSimulateLead = async () => {
     if (agents.length === 0) {
@@ -553,6 +601,8 @@ const CommercialPage: React.FC = () => {
                   onStatusChange={handleStatusChange}
                   onSetMontant={handleSetMontant}
                   onNotesSave={handleNotesSave}
+                  onValidatePlacement={handleValidatePlacement}
+                  onMarkScolariteSoldee={handleMarkScolariteSoldee}
                   isNew={lead.id === newLeadId}
                 />
               ))}

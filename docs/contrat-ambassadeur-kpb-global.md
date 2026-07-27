@@ -1,3 +1,5 @@
+> **Remplacé** par [`docs/spec-signature-contrat-ambassadeur.md`](spec-signature-contrat-ambassadeur.md) (v1.1).
+
 # Contrat d’Ambassadeur — Programme Agent KPB
 
 **Version brouillon** — à peaufiner avant intégration plateforme.  

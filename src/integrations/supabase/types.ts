@@ -26,6 +26,11 @@ export type Database = {
           statut: Database["public"]["Enums"]["agent_statut"];
           tier: Database["public"]["Enums"]["agent_tier"];
           whatsapp: string;
+          date_naissance: string | null;
+          contrat_signe_at: string | null;
+          contrat_id: string | null;
+          periode_debut: string | null;
+          placements_periode: number;
         };
         Insert: {
           code_parrainage: string;
@@ -44,6 +49,11 @@ export type Database = {
           statut?: Database["public"]["Enums"]["agent_statut"];
           tier?: Database["public"]["Enums"]["agent_tier"];
           whatsapp: string;
+          date_naissance?: string | null;
+          contrat_signe_at?: string | null;
+          contrat_id?: string | null;
+          periode_debut?: string | null;
+          placements_periode?: number;
         };
         Update: {
           code_parrainage?: string;
@@ -62,6 +72,11 @@ export type Database = {
           statut?: Database["public"]["Enums"]["agent_statut"];
           tier?: Database["public"]["Enums"]["agent_tier"];
           whatsapp?: string;
+          date_naissance?: string | null;
+          contrat_signe_at?: string | null;
+          contrat_id?: string | null;
+          periode_debut?: string | null;
+          placements_periode?: number;
         };
         Relationships: [
           {
@@ -82,6 +97,17 @@ export type Database = {
           montant: number;
           statut: Database["public"]["Enums"]["commission_statut"];
           type: Database["public"]["Enums"]["commission_type"];
+          taux_applique: number | null;
+          bareme_version: string | null;
+          devise: string;
+          assiette: string;
+          condition_paiement: string;
+          montant_previsionnel: number | null;
+          payable_at: string | null;
+          justificatif_path: string | null;
+          motif_annulation: string | null;
+          reversal_of: string | null;
+          periode_debut: string | null;
         };
         Insert: {
           agent_id: string;
@@ -91,6 +117,17 @@ export type Database = {
           montant: number;
           statut?: Database["public"]["Enums"]["commission_statut"];
           type: Database["public"]["Enums"]["commission_type"];
+          taux_applique?: number | null;
+          bareme_version?: string | null;
+          devise?: string;
+          assiette?: string;
+          condition_paiement?: string;
+          montant_previsionnel?: number | null;
+          payable_at?: string | null;
+          justificatif_path?: string | null;
+          motif_annulation?: string | null;
+          reversal_of?: string | null;
+          periode_debut?: string | null;
         };
         Update: {
           agent_id?: string;
@@ -100,6 +137,17 @@ export type Database = {
           montant?: number;
           statut?: Database["public"]["Enums"]["commission_statut"];
           type?: Database["public"]["Enums"]["commission_type"];
+          taux_applique?: number | null;
+          bareme_version?: string | null;
+          devise?: string;
+          assiette?: string;
+          condition_paiement?: string;
+          montant_previsionnel?: number | null;
+          payable_at?: string | null;
+          justificatif_path?: string | null;
+          motif_annulation?: string | null;
+          reversal_of?: string | null;
+          periode_debut?: string | null;
         };
         Relationships: [
           {
@@ -135,6 +183,14 @@ export type Database = {
           statut: Database["public"]["Enums"]["lead_statut"];
           updated_at: string;
           whatsapp: string | null;
+          ecole_campus_id: string | null;
+          admission_confirmee_at: string | null;
+          scolarite_soldee_at: string | null;
+          justificatif_paiement_path: string | null;
+          ecole_commission_attendue: number | null;
+          ecole_commission_devise: string | null;
+          ecole_commission_recue_at: string | null;
+          ecole_commission_montant: number | null;
         };
         Insert: {
           agent_id: string;
@@ -152,6 +208,14 @@ export type Database = {
           statut?: Database["public"]["Enums"]["lead_statut"];
           updated_at?: string;
           whatsapp?: string | null;
+          ecole_campus_id?: string | null;
+          admission_confirmee_at?: string | null;
+          scolarite_soldee_at?: string | null;
+          justificatif_paiement_path?: string | null;
+          ecole_commission_attendue?: number | null;
+          ecole_commission_devise?: string | null;
+          ecole_commission_recue_at?: string | null;
+          ecole_commission_montant?: number | null;
         };
         Update: {
           agent_id?: string;
@@ -169,6 +233,14 @@ export type Database = {
           statut?: Database["public"]["Enums"]["lead_statut"];
           updated_at?: string;
           whatsapp?: string | null;
+          ecole_campus_id?: string | null;
+          admission_confirmee_at?: string | null;
+          scolarite_soldee_at?: string | null;
+          justificatif_paiement_path?: string | null;
+          ecole_commission_attendue?: number | null;
+          ecole_commission_devise?: string | null;
+          ecole_commission_recue_at?: string | null;
+          ecole_commission_montant?: number | null;
         };
         Relationships: [
           {
@@ -176,6 +248,164 @@ export type Database = {
             columns: ["agent_id"];
             isOneToOne: false;
             referencedRelation: "agents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      bareme_versions: {
+        Row: {
+          version: string;
+          effective_from: string;
+          contenu: Json;
+          is_current: boolean;
+          created_at: string;
+        };
+        Insert: {
+          version: string;
+          effective_from: string;
+          contenu: Json;
+          is_current?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          version?: string;
+          effective_from?: string;
+          contenu?: Json;
+          is_current?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      contracts: {
+        Row: {
+          id: string;
+          agent_id: string;
+          version: string;
+          bareme_snapshot: Json;
+          pdf_path: string;
+          sha256: string;
+          accepted_full_name: string;
+          accepted_terms: boolean;
+          accepted_age_18: boolean;
+          accepted_image: boolean;
+          signature_path: string | null;
+          signed_at: string | null;
+          signed_ip: string | null;
+          signed_user_agent: string | null;
+          kpb_signatory_name: string;
+          kpb_signatory_role: string;
+          kpb_signature_path: string | null;
+          status: string;
+          superseded_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          agent_id: string;
+          version: string;
+          bareme_snapshot: Json;
+          pdf_path: string;
+          sha256: string;
+          accepted_full_name?: string;
+          accepted_terms?: boolean;
+          accepted_age_18?: boolean;
+          accepted_image?: boolean;
+          signature_path?: string | null;
+          signed_at?: string | null;
+          signed_ip?: string | null;
+          signed_user_agent?: string | null;
+          kpb_signatory_name?: string;
+          kpb_signatory_role?: string;
+          kpb_signature_path?: string | null;
+          status?: string;
+          superseded_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          agent_id?: string;
+          version?: string;
+          bareme_snapshot?: Json;
+          pdf_path?: string;
+          sha256?: string;
+          accepted_full_name?: string;
+          accepted_terms?: boolean;
+          accepted_age_18?: boolean;
+          accepted_image?: boolean;
+          signature_path?: string | null;
+          signed_at?: string | null;
+          signed_ip?: string | null;
+          signed_user_agent?: string | null;
+          kpb_signatory_name?: string;
+          kpb_signatory_role?: string;
+          kpb_signature_path?: string | null;
+          status?: string;
+          superseded_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contracts_agent_id_fkey";
+            columns: ["agent_id"];
+            isOneToOne: false;
+            referencedRelation: "agents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ecoles: {
+        Row: {
+          id: string;
+          nom: string;
+          groupe: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nom: string;
+          groupe?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          nom?: string;
+          groupe?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ecoles_campus: {
+        Row: {
+          id: string;
+          ecole_id: string;
+          ville: string;
+          pays: string;
+          eligible_prime: boolean;
+          actif: boolean;
+        };
+        Insert: {
+          id?: string;
+          ecole_id: string;
+          ville: string;
+          pays: string;
+          eligible_prime?: boolean;
+          actif?: boolean;
+        };
+        Update: {
+          id?: string;
+          ecole_id?: string;
+          ville?: string;
+          pays?: string;
+          eligible_prime?: boolean;
+          actif?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ecoles_campus_ecole_id_fkey";
+            columns: ["ecole_id"];
+            isOneToOne: false;
+            referencedRelation: "ecoles";
             referencedColumns: ["id"];
           },
         ];
@@ -241,12 +471,21 @@ export type Database = {
         Args: { p_lead_id: string };
         Returns: undefined;
       };
+      create_prime_scolarite: { Args: { p_lead_id: string }; Returns: Json };
       current_commercial_name: { Args: never; Returns: string };
       current_user_role: {
         Args: never;
         Returns: Database["public"]["Enums"]["user_role"];
       };
+      freeze_commissions: {
+        Args: { p_agent_id: string; p_motif: string };
+        Returns: number;
+      };
       get_agent_rank: { Args: never; Returns: number };
+      get_contract_for_commercial: {
+        Args: { p_contract_id: string };
+        Returns: Json;
+      };
       get_leaderboard: {
         Args: { p_end: string; p_limit?: number; p_start: string };
         Returns: {
@@ -255,6 +494,8 @@ export type Database = {
           rang: number;
         }[];
       };
+      get_my_contract_download: { Args: never; Returns: Json };
+      lapse_school_commissions: { Args: never; Returns: number };
       list_agents_basic: {
         Args: never;
         Returns: {
@@ -280,12 +521,44 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"];
         }[];
       };
+      mark_payable: { Args: never; Returns: number };
+      mark_scolarite_soldee: {
+        Args: { p_justificatif_path: string; p_lead_id: string };
+        Returns: Json;
+      };
+      prepare_contract: { Args: never; Returns: Json };
+      record_school_commission: {
+        Args: {
+          p_devise: string;
+          p_lead_id: string;
+          p_montant: number;
+          p_recu_le?: string;
+        };
+        Returns: Json;
+      };
+      reverse_commission: {
+        Args: { p_id: string; p_motif: string };
+        Returns: Json;
+      };
+      revise_tiers: { Args: never; Returns: number };
       set_user_role: {
         Args: {
           p_role: Database["public"]["Enums"]["user_role"];
           p_user_id: string;
         };
         Returns: undefined;
+      };
+      sign_contract: {
+        Args: {
+          p_accepted_age_18: boolean;
+          p_accepted_image: boolean;
+          p_accepted_terms: boolean;
+          p_contract_id: string;
+          p_full_name: string;
+          p_signature_b64: string;
+          p_user_agent?: string;
+        };
+        Returns: Json;
       };
       submit_quiz_attempt: { Args: { p_answers: number[] }; Returns: Json };
       submit_referral_lead: {
@@ -300,12 +573,40 @@ export type Database = {
         };
         Returns: Json;
       };
+      taux_for_placements: { Args: { p_count: number }; Returns: number };
+      tier_for_placements: {
+        Args: { p_count: number };
+        Returns: Database["public"]["Enums"]["agent_tier"];
+      };
+      validate_placement: {
+        Args: {
+          p_ecole_campus_id?: string;
+          p_ecole_commission_attendue?: number;
+          p_ecole_commission_devise?: string;
+          p_justificatif_path: string;
+          p_lead_id: string;
+          p_montant_service: number;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       agent_statut: "quiz_pending" | "quiz_failed" | "essai" | "officiel";
       agent_tier: "bronze" | "argent" | "elite";
-      commission_statut: "pending" | "paid";
-      commission_type: "bonus_dossier" | "placement" | "bonus_palier";
+      commission_statut:
+        | "pending"
+        | "attente_ecole"
+        | "payable"
+        | "paid"
+        | "gelee"
+        | "annulee"
+        | "caduque";
+      commission_type:
+        | "bonus_dossier"
+        | "placement"
+        | "bonus_palier"
+        | "apport_ecole"
+        | "prime_scolarite";
       lead_statut: "nouveau" | "contacte" | "qualifie" | "acompte_paye" | "place";
       user_role: "agent" | "commercial" | "admin";
     };

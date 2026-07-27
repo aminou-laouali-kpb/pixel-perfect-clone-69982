@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedResultatRouteImport } from './routes/_authenticated/resultat'
 import { Route as AuthenticatedQuizRouteImport } from './routes/_authenticated/quiz'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedContratRouteImport } from './routes/_authenticated/contrat'
 import { Route as AuthenticatedCommercialRouteImport } from './routes/_authenticated/commercial'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 
@@ -77,6 +78,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedContratRoute = AuthenticatedContratRouteImport.update({
+  id: '/contrat',
+  path: '/contrat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCommercialRoute = AuthenticatedCommercialRouteImport.update({
   id: '/commercial',
   path: '/commercial',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/contrat': typeof AuthenticatedContratRoute
   '/quiz': typeof AuthenticatedQuizRoute
   '/resultat': typeof AuthenticatedResultatRoute
 }
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/contrat': typeof AuthenticatedContratRoute
   '/quiz': typeof AuthenticatedQuizRoute
   '/resultat': typeof AuthenticatedResultatRoute
 }
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/commercial': typeof AuthenticatedCommercialRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/contrat': typeof AuthenticatedContratRoute
   '/_authenticated/quiz': typeof AuthenticatedQuizRoute
   '/_authenticated/resultat': typeof AuthenticatedResultatRoute
 }
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/commercial'
     | '/dashboard'
+    | '/contrat'
     | '/quiz'
     | '/resultat'
   fileRoutesByTo: FileRoutesByTo
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/commercial'
     | '/dashboard'
+    | '/contrat'
     | '/quiz'
     | '/resultat'
   id:
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/commercial'
     | '/_authenticated/dashboard'
+    | '/_authenticated/contrat'
     | '/_authenticated/quiz'
     | '/_authenticated/resultat'
   fileRoutesById: FileRoutesById
@@ -268,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contrat': {
+      id: '/_authenticated/contrat'
+      path: '/contrat'
+      fullPath: '/contrat'
+      preLoaderRoute: typeof AuthenticatedContratRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/commercial': {
       id: '/_authenticated/commercial'
       path: '/commercial'
@@ -289,6 +308,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedContratRoute: typeof AuthenticatedContratRoute
   AuthenticatedQuizRoute: typeof AuthenticatedQuizRoute
   AuthenticatedResultatRoute: typeof AuthenticatedResultatRoute
 }
@@ -297,6 +317,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedContratRoute: AuthenticatedContratRoute,
   AuthenticatedQuizRoute: AuthenticatedQuizRoute,
   AuthenticatedResultatRoute: AuthenticatedResultatRoute,
 }

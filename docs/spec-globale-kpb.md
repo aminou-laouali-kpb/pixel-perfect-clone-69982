@@ -30,7 +30,7 @@ Une plateforme web qui permet de :
 |---------|--------|
 | Nom produit | **KPB Education** — Programme Ambassadeur |
 | Entité juridique (contrat) | **KPB Global L.L.C.** |
-| Promesse | Aucun investissement · commissions 10–15 % · suivi transparent |
+| Promesse | Aucun investissement · commissions **15–30 %** · suivi transparent |
 | Destinations | France, Allemagne, Espagne, Maroc, Turquie, Canada, Dubaï, USA |
 
 ---

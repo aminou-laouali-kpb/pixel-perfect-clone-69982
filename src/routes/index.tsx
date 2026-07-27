@@ -33,7 +33,7 @@ const LandingPage: React.FC = () => {
               l&apos;étranger
             </h1>
             <p className="mt-5 max-w-xl text-lg text-navy-300 leading-relaxed">
-              Aucun investissement. Suivi transparent. Commissions de 10 à 15&nbsp;% sur chaque
+              Aucun investissement. Suivi transparent. Commissions de 15 à 30&nbsp;% sur chaque
               placement.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
@@ -72,7 +72,7 @@ const LandingPage: React.FC = () => {
               <div className="mt-2 text-sm font-medium text-navy-300">Pays couverts</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-extrabold text-gold-500">10–15%</div>
+              <div className="text-3xl font-extrabold text-gold-500">15–30%</div>
               <div className="mt-2 text-sm font-medium text-navy-300">Commission agent</div>
             </div>
           </div>
@@ -108,7 +108,7 @@ const LandingPage: React.FC = () => {
               {
                 icon: DollarSign,
                 title: "Tu gagnes",
-                body: "Commissions 10–15 % et bonus paliers en FCFA.",
+                body: "Commissions 15–30 % et bonus paliers en FCFA.",
               },
             ].map((step, i) => (
               <div
@@ -140,9 +140,9 @@ const LandingPage: React.FC = () => {
 
           <div className="grid lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { name: "Bronze", rate: "10%", detail: "Moins de 3 placements" },
-              { name: "Argent", rate: "12%", detail: "De 3 à 9 placements" },
-              { name: "Élite", rate: "15%", detail: "10 placements et plus", highlight: true },
+              { name: "Bronze", rate: "15%", detail: "1 à 5 placements (période)" },
+              { name: "Argent", rate: "20%", detail: "6 à 10 placements (période)" },
+              { name: "Élite", rate: "30%", detail: "11 placements et plus", highlight: true },
             ].map((tier) => (
               <div
                 key={tier.name}

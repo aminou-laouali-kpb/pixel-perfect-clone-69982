@@ -258,10 +258,15 @@ const AdminPage: React.FC = () => {
     .reduce((sum, c) => sum + Number(c.montant), 0);
 
   const totalPending = commissions
-    .filter((c) => c.statut === "pending")
+    .filter((c) => c.statut === "pending" || c.statut === "payable")
+    .filter((c) => c.type !== "apport_ecole" || c.statut === "payable")
     .reduce((sum, c) => sum + Number(c.montant), 0);
 
-  const pendingPayouts = commissions.filter((c) => c.statut === "pending");
+  const pendingPayouts = commissions.filter(
+    (c) =>
+      c.statut === "payable" ||
+      (c.statut === "pending" && c.condition_paiement !== "encaissement_ecole"),
+  );
 
   const getAgentName = (agentId: string) => {
     return agents.find((a) => a.id === agentId)?.nom || "Agent Inconnu";

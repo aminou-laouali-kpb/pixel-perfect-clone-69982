@@ -124,7 +124,7 @@ const ResultatPage: React.FC = () => {
                     4
                   </span>
                   <span>
-                    <strong>Gagnez vos commissions</strong> : 10 % à 15 % sur chaque service réglé
+                    <strong>Gagnez vos commissions</strong> : 15 % à 30 % sur chaque service réglé
                     par vos filleuls, plus des bonus paliers (20 000 / 50 000 / 100 000 FCFA à 3 / 5
                     / 10 parrainages).
                   </span>
@@ -133,10 +133,10 @@ const ResultatPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => navigate({ to: "/dashboard" })}
+              onClick={() => navigate({ to: "/contrat" })}
               className="w-full flex justify-center items-center gap-2 rounded-xl bg-gold-500 py-3.5 text-sm font-bold text-navy-950 hover:bg-gold-400 transition-all hover:scale-[1.02] shadow-[0_0_20px_rgba(217,161,16,0.3)]"
             >
-              Accéder à mon tableau de bord
+              Signer mon contrat et activer mon lien
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>

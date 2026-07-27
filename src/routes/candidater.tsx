@@ -10,25 +10,47 @@ import { PAYS_LIST, NIVEAUX_ETUDES, PASSWORD_MIN_LENGTH } from "@/lib/constants"
 import { generateReferralCode } from "@/lib/referral-code";
 import { UserPlus, ArrowLeft, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 
-const candidaterSchema = z.object({
-  nom: z.string().min(3, "Le nom doit comporter au moins 3 caractères"),
-  email: z.string().email("Adresse email invalide"),
-  password: z
-    .string()
-    .min(
-      PASSWORD_MIN_LENGTH,
-      `Le mot de passe doit comporter au moins ${PASSWORD_MIN_LENGTH} caractères`,
-    ),
-  whatsapp: z
-    .string()
-    .regex(
-      /^\+[0-9]{8,15}$/,
-      "Le numéro WhatsApp doit être au format international (ex: +22790123456)",
-    ),
-  pays: z.string().min(1, "Veuillez sélectionner un pays de résidence"),
-  niveauEtudes: z.string().min(1, "Veuillez sélectionner votre niveau d'études"),
-  motivation: z.string().max(300, "La motivation ne doit pas dépasser 300 caractères").optional(),
-});
+const candidaterSchema = z
+  .object({
+    nom: z.string().min(3, "Le nom doit comporter au moins 3 caractères"),
+    email: z.string().email("Adresse email invalide"),
+    password: z
+      .string()
+      .min(
+        PASSWORD_MIN_LENGTH,
+        `Le mot de passe doit comporter au moins ${PASSWORD_MIN_LENGTH} caractères`,
+      ),
+    whatsapp: z
+      .string()
+      .regex(
+        /^\+[0-9]{8,15}$/,
+        "Le numéro WhatsApp doit être au format international (ex: +22790123456)",
+      ),
+    pays: z.string().min(1, "Veuillez sélectionner un pays de résidence"),
+    niveauEtudes: z.string().min(1, "Veuillez sélectionner votre niveau d'études"),
+    dateNaissance: z.string().min(1, "La date de naissance est obligatoire"),
+    motivation: z.string().max(300, "La motivation ne doit pas dépasser 300 caractères").optional(),
+  })
+  .superRefine((data, ctx) => {
+    const dob = new Date(data.dateNaissance);
+    if (Number.isNaN(dob.getTime())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Date invalide",
+        path: ["dateNaissance"],
+      });
+      return;
+    }
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 18);
+    if (dob > cutoff) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Vous devez avoir au moins 18 ans pour candidater",
+        path: ["dateNaissance"],
+      });
+    }
+  });
 
 type CandidaterFormValues = z.infer<typeof candidaterSchema>;
 
@@ -76,6 +98,7 @@ const CandidaterPage: React.FC = () => {
             whatsapp: data.whatsapp,
             pays: data.pays,
             niveau_etudes: data.niveauEtudes,
+            date_naissance: data.dateNaissance,
             motivation: data.motivation ?? "",
             code_parrainage: codeParrainage,
             parrain_code: referrerCode ?? "",
@@ -148,7 +171,7 @@ const CandidaterPage: React.FC = () => {
             </div>
             <div className="flex items-start gap-3 text-sm">
               <CheckCircle2 className="h-5 w-5 text-gold-500 shrink-0 mt-0.5" />
-              <span>10% à 15% de commissions sur le placement</span>
+              <span>15% à 30% de commissions sur le placement</span>
             </div>
             <div className="flex items-start gap-3 text-sm">
               <CheckCircle2 className="h-5 w-5 text-gold-500 shrink-0 mt-0.5" />
@@ -313,6 +336,30 @@ const CandidaterPage: React.FC = () => {
                   <p className="mt-1 text-xs text-rose-400">{errors.niveauEtudes.message}</p>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="dateNaissance"
+                className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+              >
+                Date de naissance *
+              </label>
+              <input
+                id="dateNaissance"
+                type="date"
+                aria-invalid={Boolean(errors.dateNaissance)}
+                {...register("dateNaissance")}
+                className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
+              />
+              {errors.dateNaissance && (
+                <p role="alert" className="mt-1 text-xs text-rose-400">
+                  {errors.dateNaissance.message}
+                </p>
+              )}
+              <p className="mt-1 text-[11px] text-navy-500">
+                Réservé aux personnes majeures (18 ans minimum).
+              </p>
             </div>
 
             {/* Motivation */}
