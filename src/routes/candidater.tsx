@@ -1,45 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useState } from 'react';
-import { useNavigate, Link } from '@tanstack/react-router';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { UserPlus, ArrowLeft, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate, Link } from "@tanstack/react-router";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
+import { PAYS_LIST, NIVEAUX_ETUDES, PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { generateReferralCode } from "@/lib/referral-code";
+import { UserPlus, ArrowLeft, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 
 const candidaterSchema = z.object({
   nom: z.string().min(3, "Le nom doit comporter au moins 3 caractères"),
   email: z.string().email("Adresse email invalide"),
-  password: z.string().min(6, "Le mot de passe doit comporter au moins 6 caractères"),
-  whatsapp: z.string().regex(/^\+[0-9]{8,15}$/, "Le numéro WhatsApp doit être au format international (ex: +22790123456)"),
+  password: z
+    .string()
+    .min(
+      PASSWORD_MIN_LENGTH,
+      `Le mot de passe doit comporter au moins ${PASSWORD_MIN_LENGTH} caractères`,
+    ),
+  whatsapp: z
+    .string()
+    .regex(
+      /^\+[0-9]{8,15}$/,
+      "Le numéro WhatsApp doit être au format international (ex: +22790123456)",
+    ),
   pays: z.string().min(1, "Veuillez sélectionner un pays de résidence"),
   niveauEtudes: z.string().min(1, "Veuillez sélectionner votre niveau d'études"),
   motivation: z.string().max(300, "La motivation ne doit pas dépasser 300 caractères").optional(),
 });
 
 type CandidaterFormValues = z.infer<typeof candidaterSchema>;
-
-const PAYS_LIST = [
-  "Niger", "Côte d'Ivoire", "Sénégal", "Cameroun", "Maroc", "Mali", 
-  "Burkina Faso", "Guinée", "Togo", "Bénin", "Congo", "RDC", 
-  "Madagascar", "Mauritanie", "Autre"
-];
-
-const NIVEAUX_ETUDES = [
-  "Terminale/Bac", "Bac+1/+2", "Licence", "Master", "Déjà à l'étranger"
-];
-
-const generateReferralCode = (pays: string): string => {
-  const cleanCountry = pays
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z]/g, "")
-    .toUpperCase();
-  const prefix = cleanCountry.substring(0, 3).padEnd(3, 'X');
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `KPB-${prefix}-${random}`;
-};
 
 const getErrorMessage = (error: unknown) => {
   return error instanceof Error ? error.message : "Une erreur est survenue lors de l'inscription.";
@@ -50,13 +41,19 @@ const CandidaterPage: React.FC = () => {
   const { refetchAuth } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [referrerCode] = useState<string | null>(() => localStorage.getItem('kpb_ref'));
+  const [referrerCode] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem("kpb_ref"),
+  );
 
-  const { register, handleSubmit, formState: { errors } } = useForm<CandidaterFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CandidaterFormValues>({
     resolver: zodResolver(candidaterSchema),
     defaultValues: {
-      motivation: '',
-    }
+      motivation: "",
+    },
   });
 
   const onSubmit = async (data: CandidaterFormValues) => {
@@ -79,11 +76,11 @@ const CandidaterPage: React.FC = () => {
             whatsapp: data.whatsapp,
             pays: data.pays,
             niveau_etudes: data.niveauEtudes,
-            motivation: data.motivation ?? '',
+            motivation: data.motivation ?? "",
             code_parrainage: codeParrainage,
-            parrain_code: referrerCode ?? '',
-          }
-        }
+            parrain_code: referrerCode ?? "",
+          },
+        },
       });
 
       if (authError) {
@@ -95,7 +92,7 @@ const CandidaterPage: React.FC = () => {
       }
 
       // Referral code consumed.
-      localStorage.removeItem('kpb_ref');
+      localStorage.removeItem("kpb_ref");
 
       if (!authData.session) {
         // Should not happen (auto-confirm is enabled), but try sign-in as a fallback.
@@ -106,7 +103,7 @@ const CandidaterPage: React.FC = () => {
         if (signInError) throw new Error(signInError.message);
       }
       await refetchAuth();
-      navigate({ to: '/quiz' });
+      navigate({ to: "/quiz" });
     } catch (err: unknown) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -117,10 +114,13 @@ const CandidaterPage: React.FC = () => {
   return (
     <div className="flex-1 bg-navy-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gold-500/5 via-transparent to-transparent"></div>
-      
+
       {/* Return Home Link */}
       <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
-        <Link to="/" className="inline-flex items-center text-sm font-semibold text-navy-400 hover:text-white transition-colors">
+        <Link
+          to="/"
+          className="inline-flex items-center text-sm font-semibold text-navy-400 hover:text-white transition-colors"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour à l'accueil
         </Link>
@@ -136,7 +136,8 @@ const CandidaterPage: React.FC = () => {
             </div>
             <h2 className="text-3xl font-extrabold text-white">Rejoignez-nous</h2>
             <p className="mt-4 text-navy-300 text-sm leading-relaxed">
-              Le Programme Agent de KPB Education vous permet de recommander vos amis et de gagner des commissions sur chaque dossier d'études finalisé.
+              Le Programme Agent de KPB Education vous permet de recommander vos amis et de gagner
+              des commissions sur chaque dossier d'études finalisé.
             </p>
           </div>
 
@@ -157,12 +158,14 @@ const CandidaterPage: React.FC = () => {
 
           {referrerCode && (
             <div className="mt-8 p-3 rounded-xl bg-navy-950/40 border border-navy-800 text-xs text-gold-400">
-              Parrainage activé : Vous postulez via le code parrain <span className="font-mono font-bold text-white">{referrerCode}</span>.
+              Parrainage activé : Vous postulez via le code parrain{" "}
+              <span className="font-mono font-bold text-white">{referrerCode}</span>.
             </div>
           )}
 
           <div className="mt-8 text-xs text-navy-400">
-            Une fois inscrit, vous passerez un court test de 5 questions sur notre charte de qualité.
+            Une fois inscrit, vous passerez un court test de 5 questions sur notre charte de
+            qualité.
           </div>
         </div>
 
@@ -182,13 +185,16 @@ const CandidaterPage: React.FC = () => {
 
             {/* Nom complet */}
             <div>
-              <label htmlFor="nom" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="nom"
+                className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+              >
                 Nom Complet *
               </label>
               <input
                 id="nom"
                 type="text"
-                {...register('nom')}
+                {...register("nom")}
                 className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                 placeholder="Ex: Fatima Diallo"
               />
@@ -198,100 +204,136 @@ const CandidaterPage: React.FC = () => {
             {/* Email & Mot de passe */}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+                <label
+                  htmlFor="email"
+                  className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+                >
                   Email *
                 </label>
                 <input
                   id="email"
                   type="email"
-                  {...register('email')}
+                  {...register("email")}
                   className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                   placeholder="nom@exemple.com"
                 />
-                {errors.email && <p className="mt-1 text-xs text-rose-400">{errors.email.message}</p>}
+                {errors.email && (
+                  <p className="mt-1 text-xs text-rose-400">{errors.email.message}</p>
+                )}
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+                >
                   Mot de passe *
                 </label>
                 <input
                   id="password"
                   type="password"
-                  {...register('password')}
+                  {...register("password")}
                   className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                   placeholder="••••••••"
                 />
-                {errors.password && <p className="mt-1 text-xs text-rose-400">{errors.password.message}</p>}
+                {errors.password && (
+                  <p className="mt-1 text-xs text-rose-400">{errors.password.message}</p>
+                )}
               </div>
             </div>
 
             {/* WhatsApp */}
             <div>
-              <label htmlFor="whatsapp" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="whatsapp"
+                className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+              >
                 Numéro WhatsApp *
               </label>
               <input
                 id="whatsapp"
                 type="text"
-                {...register('whatsapp')}
+                {...register("whatsapp")}
                 className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                 placeholder="Ex: +22790123456"
               />
-              {errors.whatsapp && <p className="mt-1 text-xs text-rose-400">{errors.whatsapp.message}</p>}
+              {errors.whatsapp && (
+                <p className="mt-1 text-xs text-rose-400">{errors.whatsapp.message}</p>
+              )}
             </div>
 
             {/* Pays & Niveau d'études */}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="pays" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+                <label
+                  htmlFor="pays"
+                  className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+                >
                   Pays de résidence *
                 </label>
                 <select
                   id="pays"
-                  {...register('pays')}
+                  {...register("pays")}
                   className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm appearance-none"
                 >
-                  <option value="" className="bg-navy-950 text-navy-500">Choisir un pays...</option>
-                  {PAYS_LIST.map(p => (
-                    <option key={p} value={p} className="bg-navy-950 text-white">{p}</option>
+                  <option value="" className="bg-navy-950 text-navy-500">
+                    Choisir un pays...
+                  </option>
+                  {PAYS_LIST.map((p) => (
+                    <option key={p} value={p} className="bg-navy-950 text-white">
+                      {p}
+                    </option>
                   ))}
                 </select>
                 {errors.pays && <p className="mt-1 text-xs text-rose-400">{errors.pays.message}</p>}
               </div>
 
               <div>
-                <label htmlFor="niveauEtudes" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+                <label
+                  htmlFor="niveauEtudes"
+                  className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+                >
                   Niveau d'études actuel *
                 </label>
                 <select
                   id="niveauEtudes"
-                  {...register('niveauEtudes')}
+                  {...register("niveauEtudes")}
                   className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm appearance-none"
                 >
-                  <option value="" className="bg-navy-950 text-navy-500">Choisir un niveau...</option>
-                  {NIVEAUX_ETUDES.map(n => (
-                    <option key={n} value={n} className="bg-navy-950 text-white">{n}</option>
+                  <option value="" className="bg-navy-950 text-navy-500">
+                    Choisir un niveau...
+                  </option>
+                  {NIVEAUX_ETUDES.map((n) => (
+                    <option key={n} value={n} className="bg-navy-950 text-white">
+                      {n}
+                    </option>
                   ))}
                 </select>
-                {errors.niveauEtudes && <p className="mt-1 text-xs text-rose-400">{errors.niveauEtudes.message}</p>}
+                {errors.niveauEtudes && (
+                  <p className="mt-1 text-xs text-rose-400">{errors.niveauEtudes.message}</p>
+                )}
               </div>
             </div>
 
             {/* Motivation */}
             <div>
-              <label htmlFor="motivation" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+              <label
+                htmlFor="motivation"
+                className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+              >
                 Motivation (facultatif - 300 chars max)
               </label>
               <textarea
                 id="motivation"
                 rows={3}
-                {...register('motivation')}
+                {...register("motivation")}
                 maxLength={300}
                 className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                 placeholder="Pourquoi souhaitez-vous devenir agent KPB ?"
               />
-              {errors.motivation && <p className="mt-1 text-xs text-rose-400">{errors.motivation.message}</p>}
+              {errors.motivation && (
+                <p className="mt-1 text-xs text-rose-400">{errors.motivation.message}</p>
+              )}
             </div>
 
             {/* Submit Button */}
@@ -314,7 +356,11 @@ const CandidaterPage: React.FC = () => {
 
             <div className="text-center text-xs text-navy-400 mt-4">
               Vous avez déjà un compte ?{" "}
-              <Link to="/login" className="text-gold-400 hover:text-gold-300 font-semibold underline">
+              <Link
+                to="/login"
+                search={{ redirect: undefined }}
+                className="text-gold-400 hover:text-gold-300 font-semibold underline"
+              >
                 Connectez-vous ici
               </Link>
             </div>

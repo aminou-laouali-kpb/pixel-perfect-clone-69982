@@ -1,12 +1,8 @@
-import React from "react";
 import { toast } from "sonner";
 
 type ToastType = "success" | "error" | "info";
 
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <>{children}</>
-);
-
+/** Thin wrapper around Sonner — no separate ToastProvider needed. */
 export const useToast = () => ({
   showToast: (message: string, type: ToastType = "info") => {
     if (type === "success") toast.success(message);

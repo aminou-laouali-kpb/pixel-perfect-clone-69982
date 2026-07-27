@@ -1,18 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
-import React, { useCallback, useEffect, useState } from 'react';
-import { Navigate } from '@tanstack/react-router';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
-import { Lead, LeadStatut } from '@/types';
-
-type RrStateBasic = { id: number; commercial: string; leads_total: number };
-import { STATUTS_LEAD } from '@/lib/utils';
-import { useToast } from '@/hooks/useToast';
-import { User, ClipboardList, TrendingUp, Sparkles, Loader2, Search, UserPlus } from 'lucide-react';
-import RoundRobinIndicator from '@/components/commercial/RoundRobinIndicator';
-import LeadCard from '@/components/commercial/LeadCard';
-import { useServerFn } from '@tanstack/react-start';
-import { inviteAgent } from '@/lib/agents.functions';
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+import { Lead, LeadStatut } from "@/types";
+import { STATUTS_LEAD } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import { useToast } from "@/hooks/useToast";
+import { User, ClipboardList, TrendingUp, Sparkles, Loader2, Search, UserPlus } from "lucide-react";
+import RoundRobinIndicator from "@/components/commercial/RoundRobinIndicator";
+import LeadCard from "@/components/commercial/LeadCard";
+import { useServerFn } from "@tanstack/react-start";
+import { inviteAgent } from "@/lib/agents.functions";
 import {
   Dialog,
   DialogContent,
@@ -20,132 +22,110 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type RrStateBasic = { id: number; commercial: string; leads_total: number };
+
+const inviteSchema = z.object({
+  nom: z.string().trim().min(2, "Nom trop court"),
+  email: z.string().trim().email("Email invalide"),
+  whatsapp: z.string().trim().min(5, "WhatsApp requis"),
+  pays: z.string().trim().min(2, "Pays requis"),
+  niveau_etudes: z.string().trim().min(1, "Niveau d'études requis"),
+});
+type InviteFormValues = z.infer<typeof inviteSchema>;
+
+async function fetchCommercialData() {
+  const [leadsRes, agentsRes, rrRes] = await Promise.all([
+    supabase.from("leads").select("*").order("created_at", { ascending: false }),
+    supabase.rpc("list_agents_basic"),
+    supabase.rpc("list_rr_state_basic"),
+  ]);
+  const rrData = (rrRes.data as RrStateBasic[] | null) ?? [];
+  const sorted = [...rrData].sort((a, b) => {
+    if (a.leads_total !== b.leads_total) return a.leads_total - b.leads_total;
+    return a.id - b.id;
+  });
+  return {
+    leads: (leadsRes.data as Lead[] | null) ?? [],
+    agents: (agentsRes.data as { id: string; nom: string }[] | null) ?? [],
+    rrStates: rrData,
+    nextCommercial: sorted[0]?.commercial ?? "Josphin",
+  };
+}
 
 const CommercialPage: React.FC = () => {
   const { profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
-  const isAdmin = profile?.role === 'admin';
+  const queryClient = useQueryClient();
+  const isAdmin = profile?.role === "admin";
 
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [agents, setAgents] = useState<{ id: string; nom: string }[]>([]);
-  const [rrStates, setRrStates] = useState<RrStateBasic[]>([]);
-  const [nextCommercial, setNextCommercial] = useState<string>('Josphin');
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>('Tous');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { data, isLoading } = useQuery({
+    queryKey: ["commercial-data"],
+    queryFn: fetchCommercialData,
+    refetchInterval: 20_000,
+    enabled: !authLoading && (profile?.role === "commercial" || profile?.role === "admin"),
+  });
+
+  const leads = data?.leads ?? [];
+  const agents = data?.agents ?? [];
+  const rrStates = data?.rrStates ?? [];
+  const nextCommercial = data?.nextCommercial ?? "Josphin";
+
+  const [activeFilter, setActiveFilter] = useState<string>("Tous");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isSimulating, setIsSimulating] = useState(false);
   const [newLeadId, setNewLeadId] = useState<string | null>(null);
 
-  // Add-agent dialog state
   const inviteAgentFn = useServerFn(inviteAgent);
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
-  const emptyForm = { nom: '', email: '', whatsapp: '', pays: '', niveau_etudes: '' };
-  const [agentForm, setAgentForm] = useState(emptyForm);
+  const inviteForm = useForm<InviteFormValues>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: { nom: "", email: "", whatsapp: "", pays: "", niveau_etudes: "" },
+  });
 
-  const handleInviteAgent = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const refetch = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["commercial-data"] });
+  };
+
+  const handleInviteAgent = inviteForm.handleSubmit(async (values) => {
     setIsInviting(true);
     try {
       const res = await inviteAgentFn({
         data: {
-          ...agentForm,
-          redirectTo: `${window.location.origin}/auth`,
+          ...values,
+          redirectTo: `${window.location.origin}/reinitialiser-mot-de-passe`,
         },
       });
-      showToast(`Invitation envoyée à ${res.email} (code ${res.code_parrainage}).`, 'success');
-      setAgentForm(emptyForm);
+      showToast(`Invitation envoyée à ${res.email} (code ${res.code_parrainage}).`, "success");
+      inviteForm.reset();
       setAddAgentOpen(false);
-      await fetchData();
+      await refetch();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'invitation.";
-      showToast(msg, 'error');
+      showToast(msg, "error");
     } finally {
       setIsInviting(false);
     }
-  };
-
-  const fetchData = useCallback(async () => {
-    try {
-      // 1. Fetch leads
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (leadsData) setLeads(leadsData);
-
-      // 2. Fetch agents (id + nom only) via security-restricted RPC
-      const { data: agentsData } = await supabase.rpc('list_agents_basic');
-
-      if (agentsData) setAgents(agentsData);
-
-      // 3. Fetch round robin states via security-restricted RPC
-      //    (no email/whatsapp PII exposure between commercials)
-      const { data: rrData } = await supabase.rpc('list_rr_state_basic');
-
-      if (rrData) {
-        setRrStates(rrData);
-        // Find next commercial based on the least leads_total, ordering by leads_total asc, id asc
-        const sorted = [...rrData].sort((a, b) => {
-          if (a.leads_total !== b.leads_total) return a.leads_total - b.leads_total;
-          return a.id - b.id;
-        });
-        if (sorted.length > 0) {
-          setNextCommercial(sorted[0].commercial);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching commercial data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-
-    // Set up Realtime listener on leads table
-    const channel = supabase
-      .channel('leads-commercial-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'leads' },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchData]);
-
-  if (!authLoading && profile && profile.role !== 'commercial' && profile.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
-  }
+  });
 
   // Update lead status
   const handleStatusChange = async (leadId: string, newStatus: LeadStatut) => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ statut: newStatus })
-        .eq('id', leadId);
+      const { error } = await supabase.from("leads").update({ statut: newStatus }).eq("id", leadId);
 
       if (error) throw error;
 
       // Realtime subscription or refetch will update UI
-      await fetchData();
-      showToast('Statut mis à jour.', 'success');
+      await refetch();
+      showToast("Statut mis à jour.", "success");
     } catch (err) {
-      console.error('Error updating status:', err);
-      showToast("Erreur lors de la mise à jour du statut.", 'error');
+      logger.error("Error updating status", err);
+      showToast("Erreur lors de la mise à jour du statut.", "error");
     }
   };
 
@@ -153,42 +133,39 @@ const CommercialPage: React.FC = () => {
   const handleSetMontant = async (leadId: string, montant: number | null) => {
     try {
       const { error } = await supabase
-        .from('leads')
+        .from("leads")
         .update({ montant_service: montant })
-        .eq('id', leadId);
+        .eq("id", leadId);
 
       if (error) throw error;
 
-      await fetchData();
-      showToast('Montant enregistré, commission recalculée.', 'success');
+      await refetch();
+      showToast("Montant enregistré, commission recalculée.", "success");
     } catch (err) {
-      console.error('Error setting service amount:', err);
-      showToast("Erreur lors de l'enregistrement du montant.", 'error');
+      logger.error("Error setting service amount", err);
+      showToast("Erreur lors de l'enregistrement du montant.", "error");
     }
   };
 
   // Save follow-up notes on a lead
   const handleNotesSave = async (leadId: string, notes: string) => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ notes })
-        .eq('id', leadId);
+      const { error } = await supabase.from("leads").update({ notes }).eq("id", leadId);
 
       if (error) throw error;
 
-      await fetchData();
-      showToast('Note enregistrée.', 'success');
+      await refetch();
+      showToast("Note enregistrée.", "success");
     } catch (err) {
-      console.error('Error saving notes:', err);
-      showToast("Erreur lors de l'enregistrement de la note.", 'error');
+      logger.error("Error saving notes", err);
+      showToast("Erreur lors de l'enregistrement de la note.", "error");
     }
   };
 
   // Simulate a new lead creation
   const handleSimulateLead = async () => {
     if (agents.length === 0) {
-      showToast("Veuillez d'abord inscrire un agent pour simuler un parrainage.", 'info');
+      showToast("Veuillez d'abord inscrire un agent pour simuler un parrainage.", "info");
       return;
     }
 
@@ -198,34 +175,41 @@ const CommercialPage: React.FC = () => {
     try {
       // Pick a random agent
       const randomAgent = agents[Math.floor(Math.random() * agents.length)];
-      
+
       // Random student data
       const names = [
-        "Jean Dupont", "Mariam Kone", "Ousmane Sylla", "Fatou Fall", 
-        "Alassane Diallo", "Koffi Mensah", "Aminata Traore", "Michel Kamano"
+        "Jean Dupont",
+        "Mariam Kone",
+        "Ousmane Sylla",
+        "Fatou Fall",
+        "Alassane Diallo",
+        "Koffi Mensah",
+        "Aminata Traore",
+        "Michel Kamano",
       ];
       const destinations = ["France", "Canada", "Maroc", "Turquie", "USA"];
       const pays = ["Niger", "Côte d'Ivoire", "Sénégal", "Cameroun", "Mali"];
-      
-      const randomName = names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
+
+      const randomName =
+        names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
       const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
       const randomPays = pays[Math.floor(Math.random() * pays.length)];
-      
+
       const randomPhone = "+227" + Math.floor(10000000 + Math.random() * 90000000);
-      const randomEmail = randomName.toLowerCase().replace(/ /g, '') + "@gmail.com";
+      const randomEmail = randomName.toLowerCase().replace(/ /g, "") + "@gmail.com";
 
       // 1. Insert lead with pending commercial
       const { data: leadData, error: insertErr } = await supabase
-        .from('leads')
+        .from("leads")
         .insert({
           agent_id: randomAgent.id,
-          assigned_to: 'pending', // assigned via RPC next
+          assigned_to: "pending", // assigned via RPC next
           nom: randomName,
           email: randomEmail,
           whatsapp: randomPhone,
           pays: randomPays,
           destination: randomDest,
-          statut: 'nouveau',
+          statut: "nouveau",
           commission_amount: 0,
         })
         .select()
@@ -234,80 +218,81 @@ const CommercialPage: React.FC = () => {
       if (insertErr) throw insertErr;
 
       // 2. Run Round Robin Assignment RPC
-      const { error: rpcErr } = await supabase
-        .rpc('assign_lead_round_robin', { p_lead_id: leadData.id });
+      const { error: rpcErr } = await supabase.rpc("assign_lead_round_robin", {
+        p_lead_id: leadData.id,
+      });
 
       if (rpcErr) throw rpcErr;
 
       setNewLeadId(leadData.id);
-      
+
       // Clear highlight after 5 seconds
       setTimeout(() => {
         setNewLeadId(null);
       }, 5000);
 
-      await fetchData();
+      await refetch();
     } catch (err) {
-      console.error('Simulation failed:', err);
-      showToast("La simulation a échoué.", 'error');
+      logger.error("Simulation failed", err);
+      showToast("La simulation a échoué.", "error");
     } finally {
       setIsSimulating(false);
     }
   };
 
   const getAgentName = (agentId: string) => {
-    return agents.find(a => a.id === agentId)?.nom || "Agent Inconnu";
+    return agents.find((a) => a.id === agentId)?.nom || "Agent Inconnu";
   };
 
   const getLeadsCountsMap = () => {
     const counts: Record<string, number> = {};
-    rrStates.forEach(rr => {
+    rrStates.forEach((rr) => {
       counts[rr.commercial] = rr.leads_total;
     });
     return counts;
   };
 
   // Commercials list is derived from rr_state so admin changes reflect everywhere.
-  const commercialNames = rrStates.map(rr => rr.commercial);
+  const commercialNames = rrStates.map((rr) => rr.commercial);
 
   // Filter leads: by commercial (admin tabs), by status, and by free-text search.
   const search = searchTerm.trim().toLowerCase();
-  const filteredLeads = leads.filter(lead => {
-    if (activeFilter !== 'Tous' && lead.assigned_to !== activeFilter) return false;
-    if (statusFilter !== 'all' && lead.statut !== statusFilter) return false;
+  const filteredLeads = leads.filter((lead) => {
+    if (activeFilter !== "Tous" && lead.assigned_to !== activeFilter) return false;
+    if (statusFilter !== "all" && lead.statut !== statusFilter) return false;
     if (search) {
-      const haystack = `${lead.nom} ${lead.whatsapp ?? ''} ${lead.email ?? ''} ${lead.destination} ${lead.pays}`.toLowerCase();
+      const haystack =
+        `${lead.nom} ${lead.whatsapp ?? ""} ${lead.email ?? ""} ${lead.destination} ${lead.pays}`.toLowerCase();
       if (!haystack.includes(search)) return false;
     }
     return true;
   });
 
   const totalLeadsCount = leads.length;
-  const newLeadsCount = leads.filter(l => l.statut === 'nouveau').length;
-  const acomptesCount = leads.filter(l => l.statut === 'acompte_paye' || l.statut === 'place').length;
+  const newLeadsCount = leads.filter((l) => l.statut === "nouveau").length;
+  const acomptesCount = leads.filter(
+    (l) => l.statut === "acompte_paye" || l.statut === "place",
+  ).length;
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex-1 bg-slate-50 flex items-center justify-center text-slate-900">
+      <div className="flex-1 bg-navy-950 flex items-center justify-center text-white">
         <div className="flex flex-col items-center space-y-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-          <p className="text-sm font-medium text-slate-500">Chargement de l'espace commercial...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gold-500 border-t-transparent"></div>
+          <p className="text-sm font-medium text-navy-300">Chargement de l'espace commercial...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 text-slate-900">
+    <div className="flex-1 bg-navy-950 py-10 px-4 sm:px-6 lg:px-8 text-white">
       <div className="mx-auto max-w-7xl space-y-8">
-        
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-navy-800 pb-6">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              Espace Commercial
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">Espace Commercial</h1>
+            <p className="text-navy-300 text-sm mt-1">
               Gérez les leads envoyés par les ambassadeurs KPB Education.
             </p>
           </div>
@@ -320,11 +305,11 @@ const CommercialPage: React.FC = () => {
               <UserPlus className="mr-2 h-4 w-4" />
               Ajouter un agent
             </button>
-            {import.meta.env.DEV && (
+            {import.meta.env.DEV && isAdmin && (
               <button
                 onClick={handleSimulateLead}
                 disabled={isSimulating}
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-xl bg-gold-600 px-5 py-3 text-sm font-bold text-navy-950 hover:bg-gold-500 transition-all shadow-md shadow-gold-500/10 disabled:opacity-50"
               >
                 {isSimulating ? (
                   <>
@@ -344,7 +329,7 @@ const CommercialPage: React.FC = () => {
 
         {/* Round Robin indicator — vue d'ensemble réservée à l'admin */}
         {isAdmin && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <div className="p-6 rounded-2xl bg-navy-900/60 border border-navy-800 shadow-none">
             <RoundRobinIndicator
               commerciaux={commercialNames}
               leadsCounts={getLeadsCountsMap()}
@@ -355,29 +340,35 @@ const CommercialPage: React.FC = () => {
 
         {/* Quick statistics */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-5 rounded-2xl border border-navy-800 shadow-none flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Leads</span>
-              <span className="text-2xl font-black text-slate-800 mt-1">{totalLeadsCount}</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Total Leads
+              </span>
+              <span className="text-2xl font-black text-navy-100 mt-1">{totalLeadsCount}</span>
             </div>
-            <div className="rounded-xl bg-blue-50 text-blue-600 p-2.5 border border-blue-100">
+            <div className="rounded-xl bg-gold-500/10 text-gold-400 p-2.5 border border-gold-500/20">
               <ClipboardList className="h-5 w-5" />
             </div>
           </div>
-          
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+
+          <div className="bg-navy-900/60 p-5 rounded-2xl border border-navy-800 shadow-none flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Nouveaux</span>
-              <span className="text-2xl font-black text-blue-600 mt-1">{newLeadsCount}</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Nouveaux
+              </span>
+              <span className="text-2xl font-black text-gold-400 mt-1">{newLeadsCount}</span>
             </div>
             <div className="rounded-xl bg-amber-50 text-amber-600 p-2.5 border border-amber-100">
               <User className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-5 rounded-2xl border border-navy-800 shadow-none flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Frais payés</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Frais payés
+              </span>
               <span className="text-2xl font-black text-emerald-600 mt-1">{acomptesCount}</span>
             </div>
             <div className="rounded-xl bg-emerald-50 text-emerald-600 p-2.5 border border-emerald-100">
@@ -392,66 +383,86 @@ const CommercialPage: React.FC = () => {
             <DialogHeader>
               <DialogTitle>Ajouter un agent</DialogTitle>
               <DialogDescription>
-                Un email d'invitation sera envoyé à l'agent pour qu'il définisse son mot de passe et se connecte.
+                Un email d'invitation sera envoyé à l'agent pour qu'il définisse son mot de passe et
+                se connecte.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleInviteAgent} className="space-y-4">
+            <form onSubmit={handleInviteAgent} className="space-y-4" noValidate>
               <div className="space-y-1.5">
                 <Label htmlFor="agent-nom">Nom complet</Label>
                 <Input
                   id="agent-nom"
-                  required
-                  minLength={2}
-                  value={agentForm.nom}
-                  onChange={e => setAgentForm(f => ({ ...f, nom: e.target.value }))}
+                  aria-invalid={Boolean(inviteForm.formState.errors.nom)}
+                  {...inviteForm.register("nom")}
                 />
+                {inviteForm.formState.errors.nom && (
+                  <p role="alert" className="text-xs text-rose-400">
+                    {inviteForm.formState.errors.nom.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="agent-email">Email</Label>
                 <Input
                   id="agent-email"
                   type="email"
-                  required
-                  value={agentForm.email}
-                  onChange={e => setAgentForm(f => ({ ...f, email: e.target.value }))}
+                  aria-invalid={Boolean(inviteForm.formState.errors.email)}
+                  {...inviteForm.register("email")}
                 />
+                {inviteForm.formState.errors.email && (
+                  <p role="alert" className="text-xs text-rose-400">
+                    {inviteForm.formState.errors.email.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="agent-whatsapp">WhatsApp</Label>
                 <Input
                   id="agent-whatsapp"
-                  required
                   placeholder="+227 ..."
-                  value={agentForm.whatsapp}
-                  onChange={e => setAgentForm(f => ({ ...f, whatsapp: e.target.value }))}
+                  aria-invalid={Boolean(inviteForm.formState.errors.whatsapp)}
+                  {...inviteForm.register("whatsapp")}
                 />
+                {inviteForm.formState.errors.whatsapp && (
+                  <p role="alert" className="text-xs text-rose-400">
+                    {inviteForm.formState.errors.whatsapp.message}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="agent-pays">Pays</Label>
                   <Input
                     id="agent-pays"
-                    required
-                    value={agentForm.pays}
-                    onChange={e => setAgentForm(f => ({ ...f, pays: e.target.value }))}
+                    aria-invalid={Boolean(inviteForm.formState.errors.pays)}
+                    {...inviteForm.register("pays")}
                   />
+                  {inviteForm.formState.errors.pays && (
+                    <p role="alert" className="text-xs text-rose-400">
+                      {inviteForm.formState.errors.pays.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="agent-niveau">Niveau d'études</Label>
                   <Input
                     id="agent-niveau"
-                    required
                     placeholder="Bac, Licence..."
-                    value={agentForm.niveau_etudes}
-                    onChange={e => setAgentForm(f => ({ ...f, niveau_etudes: e.target.value }))}
+                    aria-invalid={Boolean(inviteForm.formState.errors.niveau_etudes)}
+                    {...inviteForm.register("niveau_etudes")}
                   />
+                  {inviteForm.formState.errors.niveau_etudes && (
+                    <p role="alert" className="text-xs text-rose-400">
+                      {inviteForm.formState.errors.niveau_etudes.message}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter className="pt-2">
                 <button
                   type="button"
                   onClick={() => setAddAgentOpen(false)}
-                  className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                  className="inline-flex items-center justify-center rounded-xl bg-navy-800 px-4 py-2 text-sm font-semibold text-navy-200 hover:bg-navy-700"
                 >
                   Annuler
                 </button>
@@ -477,22 +488,22 @@ const CommercialPage: React.FC = () => {
         {/* Leads grid */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-lg font-bold text-slate-900">Portefeuille de Leads</h3>
-            
+            <h3 className="text-lg font-bold text-white">Portefeuille de Leads</h3>
+
             {/* Filter tabs — réservés à l'admin (un commercial ne voit que ses leads) */}
             {isAdmin && (
-              <div className="flex bg-slate-200/60 p-1 rounded-xl gap-1 shrink-0 self-start">
-                {['Tous', ...commercialNames].map(tab => (
+              <div className="flex bg-navy-900/80 p-1 rounded-xl gap-1 shrink-0 self-start">
+                {["Tous", ...commercialNames].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveFilter(tab)}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       activeFilter === tab
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-950"
+                        ? "bg-navy-900/60 text-white shadow-none"
+                        : "text-navy-300 hover:text-slate-950"
                     }`}
                   >
-                    {tab === 'Tous' ? 'Tous les commerciaux' : tab}
+                    {tab === "Tous" ? "Tous les commerciaux" : tab}
                   </button>
                 ))}
               </div>
@@ -502,37 +513,39 @@ const CommercialPage: React.FC = () => {
           {/* Search + status filter */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-navy-400">
                 <Search className="h-4 w-4" />
               </span>
               <input
                 type="text"
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Rechercher (nom, WhatsApp, email, destination, pays)..."
-                className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                className="w-full rounded-xl border border-navy-800 bg-navy-900/60 pl-10 pr-4 py-2.5 text-sm text-navy-200 placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 cursor-pointer"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-xl border border-navy-800 bg-navy-900/60 px-4 py-2.5 text-sm font-semibold text-navy-200 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 cursor-pointer"
             >
               <option value="all">Tous les statuts</option>
-              {STATUTS_LEAD.map(s => (
-                <option key={s} value={s}>{s === 'acompte_paye' ? 'Frais payés' : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              {STATUTS_LEAD.map((s) => (
+                <option key={s} value={s}>
+                  {s === "acompte_paye" ? "Frais payés" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </option>
               ))}
             </select>
           </div>
 
           {filteredLeads.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
+            <div className="bg-navy-900/60 rounded-2xl border border-navy-800 p-12 text-center text-navy-400">
               <ClipboardList className="mx-auto h-12 w-12 text-slate-300 mb-3" />
               <p className="text-sm">Aucun lead trouvé pour ce filtre.</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredLeads.map(lead => (
+              {filteredLeads.map((lead) => (
                 <LeadCard
                   key={lead.id}
                   lead={lead}
@@ -546,11 +559,16 @@ const CommercialPage: React.FC = () => {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
 };
 export const Route = createFileRoute("/_authenticated/commercial")({
+  beforeLoad: ({ context }) => {
+    const role = context.profile?.role;
+    if (role !== "commercial" && role !== "admin") {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: CommercialPage,
 });

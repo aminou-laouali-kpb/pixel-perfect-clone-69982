@@ -1,21 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/useToast';
-import { KeyRound, Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/useToast";
+import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { KeyRound, Loader2 } from "lucide-react";
 
 const schema = z
   .object({
-    password: z.string().min(6, 'Le mot de passe doit comporter au moins 6 caractères'),
+    password: z
+      .string()
+      .min(
+        PASSWORD_MIN_LENGTH,
+        `Le mot de passe doit comporter au moins ${PASSWORD_MIN_LENGTH} caractères`,
+      ),
     confirm: z.string(),
   })
-  .refine(data => data.password === data.confirm, {
-    message: 'Les mots de passe ne correspondent pas',
-    path: ['confirm'],
+  .refine((data) => data.password === data.confirm, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirm"],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -26,7 +32,11 @@ const ResetPasswordPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -39,14 +49,14 @@ const ResetPasswordPage: React.FC = () => {
 
       // The recovery session is single-purpose: sign out so the user logs in fresh.
       await supabase.auth.signOut();
-      showToast('Mot de passe mis à jour. Connectez-vous.', 'success');
-      navigate({ to: '/login', replace: true });
+      showToast("Mot de passe mis à jour. Connectez-vous.", "success");
+      navigate({ to: "/login", search: { redirect: undefined }, replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Une erreur est survenue.";
       setErrorMsg(
-        message.toLowerCase().includes('session')
+        message.toLowerCase().includes("session")
           ? "Lien invalide ou expiré. Refaites une demande de réinitialisation."
-          : message
+          : message,
       );
     } finally {
       setIsSubmitting(false);
@@ -76,31 +86,41 @@ const ResetPasswordPage: React.FC = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
-            <label htmlFor="password" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+            <label
+              htmlFor="password"
+              className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+            >
               Nouveau mot de passe
             </label>
             <input
               id="password"
               type="password"
-              {...register('password')}
+              {...register("password")}
               className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2.5 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
               placeholder="••••••••"
             />
-            {errors.password && <p className="mt-1 text-xs text-rose-400">{errors.password.message}</p>}
+            {errors.password && (
+              <p className="mt-1 text-xs text-rose-400">{errors.password.message}</p>
+            )}
           </div>
 
           <div>
-            <label htmlFor="confirm" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+            <label
+              htmlFor="confirm"
+              className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+            >
               Confirmer le mot de passe
             </label>
             <input
               id="confirm"
               type="password"
-              {...register('confirm')}
+              {...register("confirm")}
               className="w-full rounded-xl bg-navy-950/50 border border-navy-800 px-4 py-2.5 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
               placeholder="••••••••"
             />
-            {errors.confirm && <p className="mt-1 text-xs text-rose-400">{errors.confirm.message}</p>}
+            {errors.confirm && (
+              <p className="mt-1 text-xs text-rose-400">{errors.confirm.message}</p>
+            )}
           </div>
 
           <button
@@ -114,7 +134,7 @@ const ResetPasswordPage: React.FC = () => {
                 Mise à jour...
               </>
             ) : (
-              'Mettre à jour le mot de passe'
+              "Mettre à jour le mot de passe"
             )}
           </button>
         </form>

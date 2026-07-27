@@ -53,7 +53,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Brand navy scale (dark theme base) */
-  --color-navy-50:  #f4f6fa;
+  --color-navy-50: #f4f6fa;
   --color-navy-100: #e8ecf3;
   --color-navy-200: #ccd7e6;
   --color-navy-300: #a1b8d3;
@@ -67,7 +67,7 @@
   --color-navy-950: #070a13;
 
   /* Brand gold scale (accent) */
-  --color-gold-50:  #fdfbeb;
+  --color-gold-50: #fdfbeb;
   --color-gold-100: #fcf6c8;
   --color-gold-200: #f9ec8d;
   --color-gold-300: #f5da4d;
@@ -81,6 +81,8 @@
 
   --animate-fade-in-up: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-pulse-gold: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
 }
 
 :root {
@@ -121,12 +123,19 @@
 }
 
 @keyframes fade-in-up {
-  0% { opacity: 0; transform: translateY(12px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse-gold {
-  0%, 100% {
+  0%,
+  100% {
     border-color: var(--color-gold-500);
     box-shadow: 0 0 0 0 rgba(217, 161, 16, 0.4);
   }
@@ -144,6 +153,21 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

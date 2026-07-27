@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /commercial
+Disallow: /admin
+Disallow: /quiz
+Disallow: /resultat
+
+Sitemap: /sitemap.xml
