@@ -17,7 +17,10 @@ export type Database = {
       agents: {
         Row: {
           code_parrainage: string
+          contrat_id: string | null
+          contrat_signe_at: string | null
           created_at: string
+          date_naissance: string | null
           email: string
           id: string
           motivation: string | null
@@ -25,7 +28,9 @@ export type Database = {
           nom: string
           parrain_id: string | null
           pays: string
+          periode_debut: string | null
           placements_count: number
+          placements_periode: number
           quiz_passed_at: string | null
           quiz_retry_at: string | null
           quiz_score: number | null
@@ -35,7 +40,10 @@ export type Database = {
         }
         Insert: {
           code_parrainage: string
+          contrat_id?: string | null
+          contrat_signe_at?: string | null
           created_at?: string
+          date_naissance?: string | null
           email: string
           id: string
           motivation?: string | null
@@ -43,7 +51,9 @@ export type Database = {
           nom: string
           parrain_id?: string | null
           pays: string
+          periode_debut?: string | null
           placements_count?: number
+          placements_periode?: number
           quiz_passed_at?: string | null
           quiz_retry_at?: string | null
           quiz_score?: number | null
@@ -53,7 +63,10 @@ export type Database = {
         }
         Update: {
           code_parrainage?: string
+          contrat_id?: string | null
+          contrat_signe_at?: string | null
           created_at?: string
+          date_naissance?: string | null
           email?: string
           id?: string
           motivation?: string | null
@@ -61,7 +74,9 @@ export type Database = {
           nom?: string
           parrain_id?: string | null
           pays?: string
+          periode_debut?: string | null
           placements_count?: number
+          placements_periode?: number
           quiz_passed_at?: string | null
           quiz_retry_at?: string | null
           quiz_score?: number | null
@@ -71,6 +86,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "agents_contrat_id_fkey"
+            columns: ["contrat_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "agents_parrain_id_fkey"
             columns: ["parrain_id"]
             isOneToOne: false
@@ -79,32 +101,89 @@ export type Database = {
           },
         ]
       }
+      bareme_versions: {
+        Row: {
+          contenu: Json
+          created_at: string
+          effective_from: string
+          is_current: boolean
+          version: string
+        }
+        Insert: {
+          contenu: Json
+          created_at?: string
+          effective_from: string
+          is_current?: boolean
+          version: string
+        }
+        Update: {
+          contenu?: Json
+          created_at?: string
+          effective_from?: string
+          is_current?: boolean
+          version?: string
+        }
+        Relationships: []
+      }
       commissions: {
         Row: {
           agent_id: string
+          assiette: string
+          bareme_version: string | null
+          condition_paiement: string
           created_at: string
+          devise: string
           id: string
+          justificatif_path: string | null
           lead_id: string | null
           montant: number
+          montant_previsionnel: number | null
+          motif_annulation: string | null
+          payable_at: string | null
+          periode_debut: string | null
+          reversal_of: string | null
           statut: Database["public"]["Enums"]["commission_statut"]
+          taux_applique: number | null
           type: Database["public"]["Enums"]["commission_type"]
         }
         Insert: {
           agent_id: string
+          assiette?: string
+          bareme_version?: string | null
+          condition_paiement?: string
           created_at?: string
+          devise?: string
           id?: string
+          justificatif_path?: string | null
           lead_id?: string | null
           montant: number
+          montant_previsionnel?: number | null
+          motif_annulation?: string | null
+          payable_at?: string | null
+          periode_debut?: string | null
+          reversal_of?: string | null
           statut?: Database["public"]["Enums"]["commission_statut"]
+          taux_applique?: number | null
           type: Database["public"]["Enums"]["commission_type"]
         }
         Update: {
           agent_id?: string
+          assiette?: string
+          bareme_version?: string | null
+          condition_paiement?: string
           created_at?: string
+          devise?: string
           id?: string
+          justificatif_path?: string | null
           lead_id?: string | null
           montant?: number
+          montant_previsionnel?: number | null
+          motif_annulation?: string | null
+          payable_at?: string | null
+          periode_debut?: string | null
+          reversal_of?: string | null
           statut?: Database["public"]["Enums"]["commission_statut"]
+          taux_applique?: number | null
           type?: Database["public"]["Enums"]["commission_type"]
         }
         Relationships: [
@@ -116,62 +195,240 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "commissions_bareme_version_fkey"
+            columns: ["bareme_version"]
+            isOneToOne: false
+            referencedRelation: "bareme_versions"
+            referencedColumns: ["version"]
+          },
+          {
             foreignKeyName: "commissions_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "commissions_reversal_of_fkey"
+            columns: ["reversal_of"]
+            isOneToOne: false
+            referencedRelation: "commissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          accepted_age_18: boolean
+          accepted_full_name: string
+          accepted_image: boolean
+          accepted_terms: boolean
+          agent_id: string
+          bareme_snapshot: Json
+          created_at: string
+          id: string
+          kpb_signatory_name: string
+          kpb_signatory_role: string
+          kpb_signature_path: string | null
+          pdf_path: string
+          sha256: string
+          signature_path: string | null
+          signed_at: string | null
+          signed_ip: unknown
+          signed_user_agent: string | null
+          status: string
+          superseded_by: string | null
+          version: string
+        }
+        Insert: {
+          accepted_age_18?: boolean
+          accepted_full_name?: string
+          accepted_image?: boolean
+          accepted_terms?: boolean
+          agent_id: string
+          bareme_snapshot: Json
+          created_at?: string
+          id?: string
+          kpb_signatory_name?: string
+          kpb_signatory_role?: string
+          kpb_signature_path?: string | null
+          pdf_path: string
+          sha256: string
+          signature_path?: string | null
+          signed_at?: string | null
+          signed_ip?: unknown
+          signed_user_agent?: string | null
+          status?: string
+          superseded_by?: string | null
+          version: string
+        }
+        Update: {
+          accepted_age_18?: boolean
+          accepted_full_name?: string
+          accepted_image?: boolean
+          accepted_terms?: boolean
+          agent_id?: string
+          bareme_snapshot?: Json
+          created_at?: string
+          id?: string
+          kpb_signatory_name?: string
+          kpb_signatory_role?: string
+          kpb_signature_path?: string | null
+          pdf_path?: string
+          sha256?: string
+          signature_path?: string | null
+          signed_at?: string | null
+          signed_ip?: unknown
+          signed_user_agent?: string | null
+          status?: string
+          superseded_by?: string | null
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ecoles: {
+        Row: {
+          created_at: string
+          groupe: string | null
+          id: string
+          nom: string
+        }
+        Insert: {
+          created_at?: string
+          groupe?: string | null
+          id?: string
+          nom: string
+        }
+        Update: {
+          created_at?: string
+          groupe?: string | null
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
+      ecoles_campus: {
+        Row: {
+          actif: boolean
+          ecole_id: string
+          eligible_prime: boolean
+          id: string
+          pays: string
+          ville: string
+        }
+        Insert: {
+          actif?: boolean
+          ecole_id: string
+          eligible_prime?: boolean
+          id?: string
+          pays: string
+          ville: string
+        }
+        Update: {
+          actif?: boolean
+          ecole_id?: string
+          eligible_prime?: boolean
+          id?: string
+          pays?: string
+          ville?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecoles_campus_ecole_id_fkey"
+            columns: ["ecole_id"]
+            isOneToOne: false
+            referencedRelation: "ecoles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leads: {
         Row: {
+          admission_confirmee_at: string | null
           agent_id: string
           assigned_to: string
           bonus_paid: boolean
           commission_amount: number
           created_at: string
           destination: string
+          ecole_campus_id: string | null
+          ecole_commission_attendue: number | null
+          ecole_commission_devise: string | null
+          ecole_commission_montant: number | null
+          ecole_commission_recue_at: string | null
           email: string | null
           id: string
+          justificatif_paiement_path: string | null
           montant_service: number | null
           nom: string
           notes: string | null
           pays: string
+          scolarite_soldee_at: string | null
           statut: Database["public"]["Enums"]["lead_statut"]
           updated_at: string
           whatsapp: string | null
         }
         Insert: {
+          admission_confirmee_at?: string | null
           agent_id: string
           assigned_to: string
           bonus_paid?: boolean
           commission_amount?: number
           created_at?: string
           destination: string
+          ecole_campus_id?: string | null
+          ecole_commission_attendue?: number | null
+          ecole_commission_devise?: string | null
+          ecole_commission_montant?: number | null
+          ecole_commission_recue_at?: string | null
           email?: string | null
           id?: string
+          justificatif_paiement_path?: string | null
           montant_service?: number | null
           nom: string
           notes?: string | null
           pays: string
+          scolarite_soldee_at?: string | null
           statut?: Database["public"]["Enums"]["lead_statut"]
           updated_at?: string
           whatsapp?: string | null
         }
         Update: {
+          admission_confirmee_at?: string | null
           agent_id?: string
           assigned_to?: string
           bonus_paid?: boolean
           commission_amount?: number
           created_at?: string
           destination?: string
+          ecole_campus_id?: string | null
+          ecole_commission_attendue?: number | null
+          ecole_commission_devise?: string | null
+          ecole_commission_montant?: number | null
+          ecole_commission_recue_at?: string | null
           email?: string | null
           id?: string
+          justificatif_paiement_path?: string | null
           montant_service?: number | null
           nom?: string
           notes?: string | null
           pays?: string
+          scolarite_soldee_at?: string | null
           statut?: Database["public"]["Enums"]["lead_statut"]
           updated_at?: string
           whatsapp?: string | null
@@ -182,6 +439,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_ecole_campus_id_fkey"
+            columns: ["ecole_campus_id"]
+            isOneToOne: false
+            referencedRelation: "ecoles_campus"
             referencedColumns: ["id"]
           },
         ]
@@ -306,12 +570,30 @@ export type Database = {
         }
         Returns: Json
       }
+      taux_for_placements: { Args: { p_count: number }; Returns: number }
+      tier_for_placements: {
+        Args: { p_count: number }
+        Returns: Database["public"]["Enums"]["agent_tier"]
+      }
+      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       agent_statut: "quiz_pending" | "quiz_failed" | "essai" | "officiel"
       agent_tier: "bronze" | "argent" | "elite"
-      commission_statut: "pending" | "paid"
-      commission_type: "bonus_dossier" | "placement" | "bonus_palier"
+      commission_statut:
+        | "pending"
+        | "paid"
+        | "attente_ecole"
+        | "payable"
+        | "gelee"
+        | "annulee"
+        | "caduque"
+      commission_type:
+        | "bonus_dossier"
+        | "placement"
+        | "bonus_palier"
+        | "apport_ecole"
+        | "prime_scolarite"
       lead_statut:
         | "nouveau"
         | "contacte"
@@ -448,8 +730,22 @@ export const Constants = {
     Enums: {
       agent_statut: ["quiz_pending", "quiz_failed", "essai", "officiel"],
       agent_tier: ["bronze", "argent", "elite"],
-      commission_statut: ["pending", "paid"],
-      commission_type: ["bonus_dossier", "placement", "bonus_palier"],
+      commission_statut: [
+        "pending",
+        "paid",
+        "attente_ecole",
+        "payable",
+        "gelee",
+        "annulee",
+        "caduque",
+      ],
+      commission_type: [
+        "bonus_dossier",
+        "placement",
+        "bonus_palier",
+        "apport_ecole",
+        "prime_scolarite",
+      ],
       lead_statut: ["nouveau", "contacte", "qualifie", "acompte_paye", "place"],
       user_role: ["agent", "commercial", "admin"],
     },
