@@ -1,6 +1,7 @@
-import { createServerFn } from '@tanstack/react-start';
-import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
-import { z } from 'zod';
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { generateInviteReferralCode } from "@/lib/referral-code";
+import { z } from "zod";
 
 const InviteAgentSchema = z.object({
   nom: z.string().trim().min(2).max(120),
@@ -12,41 +13,32 @@ const InviteAgentSchema = z.object({
   redirectTo: z.string().url().optional(),
 });
 
-function generateCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  for (let i = 0; i < 8; i++) {
-    s += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return s;
-}
-
-export const inviteAgent = createServerFn({ method: 'POST' })
+export const inviteAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InviteAgentSchema.parse(input))
   .handler(async ({ data, context }) => {
     // 1. Verify caller is commercial or admin
     const { data: roleRow, error: roleErr } = await context.supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', context.userId)
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
       .maybeSingle();
     if (roleErr) throw new Error(roleErr.message);
     const role = roleRow?.role;
-    if (role !== 'commercial' && role !== 'admin') {
-      throw new Error('Action réservée aux commerciaux et administrateurs.');
+    if (role !== "commercial" && role !== "admin") {
+      throw new Error("Action réservée aux commerciaux et administrateurs.");
     }
 
-    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 2. Generate a unique code_parrainage (retry on collision)
-    let code = '';
+    let code = "";
     for (let attempt = 0; attempt < 8; attempt++) {
-      const candidate = generateCode();
+      const candidate = generateInviteReferralCode(data.pays);
       const { data: existing } = await supabaseAdmin
-        .from('agents')
-        .select('id')
-        .eq('code_parrainage', candidate)
+        .from("agents")
+        .select("id")
+        .eq("code_parrainage", candidate)
         .maybeSingle();
       if (!existing) {
         code = candidate;
@@ -72,9 +64,9 @@ export const inviteAgent = createServerFn({ method: 'POST' })
     );
 
     if (inviteErr) {
-      const msg = inviteErr.message || 'Erreur lors de l\u2019invitation.';
+      const msg = inviteErr.message || "Erreur lors de l\u2019invitation.";
       if (/already/i.test(msg) || /registered/i.test(msg) || /exists/i.test(msg)) {
-        throw new Error('Cet email est déjà enregistré.');
+        throw new Error("Cet email est déjà enregistré.");
       }
       throw new Error(msg);
     }

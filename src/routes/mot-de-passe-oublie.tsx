@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { supabase } from '@/lib/supabase';
-import { Mail, Loader2, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react';
+import React, { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { supabase } from "@/lib/supabase";
+import { Mail, Loader2, ArrowLeft, KeyRound, CheckCircle2 } from "lucide-react";
 
 const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -32,7 +32,10 @@ const ForgotPasswordPage: React.FC = () => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gold-500/5 via-transparent to-transparent"></div>
 
       <div className="absolute top-4 left-4 sm:top-8 sm:left-8">
-        <Link to="/login" className="inline-flex items-center text-sm font-semibold text-navy-400 hover:text-white transition-colors">
+        <Link
+          to="/login"
+          className="inline-flex items-center text-sm font-semibold text-navy-400 hover:text-white transition-colors"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour à la connexion
         </Link>
@@ -46,8 +49,9 @@ const ForgotPasswordPage: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-white">Email envoyé</h2>
             <p className="text-sm text-navy-300 leading-relaxed">
-              Si un compte existe pour <span className="font-semibold text-white">{email}</span>, vous
-              recevrez un lien pour réinitialiser votre mot de passe. Pensez à vérifier vos spams.
+              Si un compte existe pour <span className="font-semibold text-white">{email}</span>,
+              vous recevrez un lien pour réinitialiser votre mot de passe. Pensez à vérifier vos
+              spams.
             </p>
             <Link
               to="/login"
@@ -76,7 +80,10 @@ const ForgotPasswordPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1">
+                <label
+                  htmlFor="email"
+                  className="block text-xs font-semibold text-navy-300 uppercase tracking-wider mb-1"
+                >
                   Adresse email
                 </label>
                 <div className="relative">
@@ -88,7 +95,7 @@ const ForgotPasswordPage: React.FC = () => {
                     type="email"
                     required
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-xl bg-navy-950/50 border border-navy-800 pl-10 pr-4 py-2.5 text-white placeholder-navy-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all text-sm"
                     placeholder="nom@exemple.com"
                   />
@@ -106,7 +113,7 @@ const ForgotPasswordPage: React.FC = () => {
                     Envoi en cours...
                   </>
                 ) : (
-                  'Envoyer le lien'
+                  "Envoyer le lien"
                 )}
               </button>
             </form>

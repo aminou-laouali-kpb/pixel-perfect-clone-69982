@@ -1,45 +1,51 @@
-import React from 'react';
-import { Lead } from '@/types';
-import { cn, formatCurrency, whatsappLink } from '@/lib/utils';
-import { Calendar, Compass, MessageCircle, Wallet } from 'lucide-react';
+import React from "react";
+import { Lead } from "@/types";
+import { cn, formatCurrency, whatsappLink } from "@/lib/utils";
+import { Calendar, Compass, MessageCircle, Wallet } from "lucide-react";
 
 interface FilleulCardProps {
   lead: Lead;
 }
 
 export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
-  const getStatusStyle = (status: Lead['statut']) => {
+  const getStatusStyle = (status: Lead["statut"]) => {
     switch (status) {
-      case 'nouveau':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'contacte':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'qualifie':
-        return 'bg-violet-500/10 text-violet-400 border-violet-500/20';
-      case 'acompte_paye':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'place':
-        return 'bg-gold-500/10 text-gold-400 border-gold-500/25';
+      case "nouveau":
+        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+      case "contacte":
+        return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+      case "qualifie":
+        return "bg-violet-500/10 text-violet-400 border-violet-500/20";
+      case "acompte_paye":
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+      case "place":
+        return "bg-gold-500/10 text-gold-400 border-gold-500/25";
       default:
-        return 'bg-navy-800 text-navy-400 border-navy-700';
+        return "bg-navy-800 text-navy-400 border-navy-700";
     }
   };
 
-  const getStatusLabel = (status: Lead['statut']) => {
+  const getStatusLabel = (status: Lead["statut"]) => {
     switch (status) {
-      case 'nouveau': return 'Nouveau';
-      case 'contacte': return 'Contacté';
-      case 'qualifie': return 'Qualifié';
-      case 'acompte_paye': return 'Frais payés';
-      case 'place': return 'Placé ✅';
-      default: return status;
+      case "nouveau":
+        return "Nouveau";
+      case "contacte":
+        return "Contacté";
+      case "qualifie":
+        return "Qualifié";
+      case "acompte_paye":
+        return "Frais payés";
+      case "place":
+        return "Placé ✅";
+      default:
+        return status;
     }
   };
 
-  const formattedDate = new Date(lead.created_at).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
+  const formattedDate = new Date(lead.created_at).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 
   return (
@@ -52,7 +58,12 @@ export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
             Parrainé le {formattedDate}
           </span>
         </div>
-        <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider", getStatusStyle(lead.statut))}>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider",
+            getStatusStyle(lead.statut),
+          )}
+        >
           {getStatusLabel(lead.statut)}
         </span>
       </div>
@@ -98,7 +109,7 @@ export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
           {/* Placement commission once the deposit is paid / placed */}
           {lead.commission_amount > 0 ? (
             <div className="text-sm font-bold text-gold-400">
-              +{formatCurrency(lead.commission_amount, 'XOF')}
+              +{formatCurrency(lead.commission_amount, "XOF")}
             </div>
           ) : (
             <span className="text-xs text-navy-500 font-medium">Aucun gain validé</span>

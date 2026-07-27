@@ -1,24 +1,37 @@
-import { createFileRoute } from "@tanstack/react-router";
-import React, { useCallback, useEffect, useState } from 'react';
-import { Navigate } from '@tanstack/react-router';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
-import { supabase } from '@/lib/supabase';
-import { Agent, Commission, Lead, RrState } from '@/types';
-import { formatCurrency } from '@/lib/utils';
-import { Users, FileCheck, CheckCircle2, Wallet, Users2, Check, Loader2, UserPlus, Trash2, Save, Shield } from 'lucide-react';
-import TierBadge from '@/components/agent/TierBadge';
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import React, { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
+import { supabase } from "@/lib/supabase";
+import { Agent, Commission, Lead, RrState } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import {
+  Users,
+  FileCheck,
+  CheckCircle2,
+  Wallet,
+  Users2,
+  Check,
+  Loader2,
+  UserPlus,
+  Trash2,
+  Save,
+  Shield,
+} from "lucide-react";
+import TierBadge from "@/components/agent/TierBadge";
 
 type AdminUserRow = {
   id: string;
   email: string;
   nom: string | null;
-  role: 'agent' | 'commercial' | 'admin';
+  role: "agent" | "commercial" | "admin";
   created_at: string;
 };
 
 const inputCls =
-  'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-500';
+  "w-full rounded-lg border border-navy-800 px-3 py-2 text-sm text-navy-200 placeholder-navy-500 focus:outline-none focus:ring-1 focus:ring-gold-500";
 
 const CommercialRow: React.FC<{
   row: RrState;
@@ -33,137 +46,132 @@ const CommercialRow: React.FC<{
   const deleting = busy === `delete-${row.id}`;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-navy-800 bg-navy-950/50">
       <div className="sm:w-32 shrink-0">
-        <div className="font-bold text-slate-800">{row.commercial}</div>
-        <div className="text-[11px] text-slate-400">{row.leads_total} lead{row.leads_total > 1 ? 's' : ''}</div>
+        <div className="font-bold text-navy-100">{row.commercial}</div>
+        <div className="text-[11px] text-navy-400">
+          {row.leads_total} lead{row.leads_total > 1 ? "s" : ""}
+        </div>
       </div>
-      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@kpb..." className={inputCls} />
-      <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+227..." className={`${inputCls} sm:max-w-[170px]`} />
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="email@kpb..."
+        className={inputCls}
+      />
+      <input
+        value={whatsapp}
+        onChange={(e) => setWhatsapp(e.target.value)}
+        placeholder="+227..."
+        className={`${inputCls} sm:max-w-[170px]`}
+      />
       <div className="flex gap-2 shrink-0">
         <button
           onClick={() => onUpdate(row.id, email, whatsapp)}
           disabled={!dirty || updating}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-navy-950 text-xs font-bold px-3 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {updating ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+          {updating ? (
+            <Loader2 className="animate-spin h-3.5 w-3.5" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
         </button>
         <button
           onClick={() => onDelete(row.id, row.commercial)}
           disabled={deleting}
           className="inline-flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 px-3 py-2 transition-colors disabled:opacity-40"
           title="Retirer ce commercial"
+          aria-label={`Retirer ${row.commercial}`}
         >
-          {deleting ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+          {deleting ? (
+            <Loader2 className="animate-spin h-3.5 w-3.5" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
     </div>
   );
 };
 
+async function fetchAdminData() {
+  const [agentsRes, leadsRes, commissionsRes, rrRes, usersRes] = await Promise.all([
+    supabase.from("agents").select("*").order("created_at", { ascending: false }),
+    supabase.from("leads").select("*"),
+    supabase.from("commissions").select("*").order("created_at", { ascending: false }),
+    supabase.from("rr_state").select("*").order("id", { ascending: true }),
+    supabase.rpc("list_users_for_admin"),
+  ]);
+  if (usersRes.error) logger.error("Error fetching users", usersRes.error);
+  return {
+    agents: (agentsRes.data as Agent[] | null) ?? [],
+    leads: (leadsRes.data as Lead[] | null) ?? [],
+    commissions: (commissionsRes.data as Commission[] | null) ?? [],
+    rrStates: (rrRes.data as RrState[] | null) ?? [],
+    users: (usersRes.data as AdminUserRow[] | null) ?? [],
+  };
+}
+
 const AdminPage: React.FC = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [rrStates, setRrStates] = useState<RrState[]>([]);
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-data"],
+    queryFn: fetchAdminData,
+    enabled: !authLoading && profile?.role === "admin",
+  });
+
+  const agents = data?.agents ?? [];
+  const leads = data?.leads ?? [];
+  const commissions = data?.commissions ?? [];
+  const rrStates = data?.rrStates ?? [];
+  const users = data?.users ?? [];
+
   const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [updatingCommId, setUpdatingCommId] = useState<string | null>(null);
   const [busyCommercial, setBusyCommercial] = useState<string | null>(null);
-  const [newCommercial, setNewCommercial] = useState({ commercial: '', email: '', whatsapp: '' });
+  const [newCommercial, setNewCommercial] = useState({ commercial: "", email: "", whatsapp: "" });
 
   const fetchData = useCallback(async () => {
-    try {
-      // 1. Fetch all agents
-      const { data: agentsData } = await supabase
-        .from('agents')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (agentsData) setAgents(agentsData);
-
-      // 2. Fetch all leads
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*');
-      
-      if (leadsData) setLeads(leadsData);
-
-      // 3. Fetch all commissions
-      const { data: commissionsData } = await supabase
-        .from('commissions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (commissionsData) setCommissions(commissionsData);
-
-      // 4. Fetch commercials (round-robin state)
-      const { data: rrData } = await supabase
-        .from('rr_state')
-        .select('*')
-        .order('id', { ascending: true });
-
-      if (rrData) setRrStates(rrData);
-
-      // 5. Fetch all users (admin-only RPC)
-      const { data: usersData, error: usersErr } = await supabase.rpc('list_users_for_admin');
-      if (usersErr) {
-        console.error('Error fetching users:', usersErr);
-      } else if (usersData) {
-        setUsers(usersData as AdminUserRow[]);
-      }
-    } catch (err) {
-      console.error('Error fetching admin data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  if (!authLoading && profile && profile.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
-  }
+    await queryClient.invalidateQueries({ queryKey: ["admin-data"] });
+  }, [queryClient]);
 
   const handleMarkAsPaid = async (commId: string) => {
     setUpdatingCommId(commId);
     try {
       const { error } = await supabase
-        .from('commissions')
-        .update({ statut: 'paid' })
-        .eq('id', commId);
+        .from("commissions")
+        .update({ statut: "paid" })
+        .eq("id", commId);
 
       if (error) throw error;
       await fetchData();
-      showToast('Commission marquée comme payée.', 'success');
+      showToast("Commission marquée comme payée.", "success");
     } catch (err) {
-      console.error('Error updating commission status:', err);
-      showToast("Erreur lors de la validation du paiement.", 'error');
+      logger.error("Error updating commission status", err);
+      showToast("Erreur lors de la validation du paiement.", "error");
     } finally {
       setUpdatingCommId(null);
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: AdminUserRow['role']) => {
+  const handleChangeRole = async (userId: string, newRole: AdminUserRow["role"]) => {
     setUpdatingRoleUserId(userId);
     try {
-      const { error } = await supabase.rpc('set_user_role', {
+      const { error } = await supabase.rpc("set_user_role", {
         p_user_id: userId,
         p_role: newRole,
       });
       if (error) throw error;
       await fetchData();
-      showToast('Rôle mis à jour.', 'success');
+      showToast("Rôle mis à jour.", "success");
     } catch (err) {
-      console.error('Error changing role:', err);
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du rôle.';
-      showToast(msg, 'error');
+      logger.error("Error changing role:", err);
+      const msg = err instanceof Error ? err.message : "Erreur lors de la mise à jour du rôle.";
+      showToast(msg, "error");
     } finally {
       setUpdatingRoleUserId(null);
     }
@@ -174,15 +182,15 @@ const AdminPage: React.FC = () => {
     setBusyCommercial(`update-${id}`);
     try {
       const { error } = await supabase
-        .from('rr_state')
+        .from("rr_state")
         .update({ email: email.trim(), whatsapp: whatsapp.trim() })
-        .eq('id', id);
+        .eq("id", id);
       if (error) throw error;
       await fetchData();
-      showToast('Commercial mis à jour.', 'success');
+      showToast("Commercial mis à jour.", "success");
     } catch (err) {
-      console.error('Error updating commercial:', err);
-      showToast("Erreur lors de la mise à jour du commercial.", 'error');
+      logger.error("Error updating commercial:", err);
+      showToast("Erreur lors de la mise à jour du commercial.", "error");
     } finally {
       setBusyCommercial(null);
     }
@@ -194,24 +202,23 @@ const AdminPage: React.FC = () => {
     const email = newCommercial.email.trim();
     const whatsapp = newCommercial.whatsapp.trim();
     if (!commercial || !email || !whatsapp) {
-      showToast('Nom, email et WhatsApp sont requis.', 'info');
+      showToast("Nom, email et WhatsApp sont requis.", "info");
       return;
     }
-    setBusyCommercial('add');
+    setBusyCommercial("add");
     try {
-      const { error } = await supabase
-        .from('rr_state')
-        .insert({ commercial, email, whatsapp });
+      const { error } = await supabase.from("rr_state").insert({ commercial, email, whatsapp });
       if (error) throw error;
-      setNewCommercial({ commercial: '', email: '', whatsapp: '' });
+      setNewCommercial({ commercial: "", email: "", whatsapp: "" });
       await fetchData();
-      showToast('Commercial ajouté.', 'success');
+      showToast("Commercial ajouté.", "success");
     } catch (err) {
-      console.error('Error adding commercial:', err);
-      const msg = err instanceof Error && err.message.includes('duplicate')
-        ? 'Un commercial portant ce nom existe déjà.'
-        : "Erreur lors de l'ajout du commercial.";
-      showToast(msg, 'error');
+      logger.error("Error adding commercial:", err);
+      const msg =
+        err instanceof Error && err.message.includes("duplicate")
+          ? "Un commercial portant ce nom existe déjà."
+          : "Erreur lors de l'ajout du commercial.";
+      showToast(msg, "error");
     } finally {
       setBusyCommercial(null);
     }
@@ -219,18 +226,22 @@ const AdminPage: React.FC = () => {
 
   // Remove a commercial from the round-robin
   const handleDeleteCommercial = async (id: number, commercial: string) => {
-    if (!window.confirm(`Retirer ${commercial} du round-robin ? Les leads déjà assignés ne seront pas réattribués.`)) {
+    if (
+      !window.confirm(
+        `Retirer ${commercial} du round-robin ? Les leads déjà assignés ne seront pas réattribués.`,
+      )
+    ) {
       return;
     }
     setBusyCommercial(`delete-${id}`);
     try {
-      const { error } = await supabase.from('rr_state').delete().eq('id', id);
+      const { error } = await supabase.from("rr_state").delete().eq("id", id);
       if (error) throw error;
       await fetchData();
-      showToast('Commercial retiré.', 'success');
+      showToast("Commercial retiré.", "success");
     } catch (err) {
-      console.error('Error deleting commercial:', err);
-      showToast("Erreur lors de la suppression du commercial.", 'error');
+      logger.error("Error deleting commercial:", err);
+      showToast("Erreur lors de la suppression du commercial.", "error");
     } finally {
       setBusyCommercial(null);
     }
@@ -238,90 +249,97 @@ const AdminPage: React.FC = () => {
 
   // Calculations
   const totalAgentsCount = agents.length;
-  const officialAgentsCount = agents.filter(a => a.statut === 'officiel').length;
+  const officialAgentsCount = agents.filter((a) => a.statut === "officiel").length;
   const totalLeadsCount = leads.length;
-  
+
   // Toutes les commissions (placement + bonus paliers) sont en FCFA (XOF).
   const totalPaid = commissions
-    .filter(c => c.statut === 'paid')
+    .filter((c) => c.statut === "paid")
     .reduce((sum, c) => sum + Number(c.montant), 0);
 
   const totalPending = commissions
-    .filter(c => c.statut === 'pending')
+    .filter((c) => c.statut === "pending")
     .reduce((sum, c) => sum + Number(c.montant), 0);
 
-  const pendingPayouts = commissions.filter(c => c.statut === 'pending');
+  const pendingPayouts = commissions.filter((c) => c.statut === "pending");
 
   const getAgentName = (agentId: string) => {
-    return agents.find(a => a.id === agentId)?.nom || "Agent Inconnu";
+    return agents.find((a) => a.id === agentId)?.nom || "Agent Inconnu";
   };
 
   const getLeadName = (leadId: string) => {
-    return leads.find(l => l.id === leadId)?.nom || "Prospect";
+    return leads.find((l) => l.id === leadId)?.nom || "Prospect";
   };
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex-1 bg-slate-50 flex items-center justify-center text-slate-900">
+      <div className="flex-1 bg-navy-950 flex items-center justify-center text-white">
         <div className="flex flex-col items-center space-y-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-transparent"></div>
-          <p className="text-sm font-medium text-slate-500">Chargement de l'administration...</p>
+          <p className="text-sm font-medium text-navy-300">Chargement de l'administration...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-slate-50 py-10 px-4 sm:px-6 lg:px-8 text-slate-900">
+    <div className="flex-1 bg-navy-950 py-10 px-4 sm:px-6 lg:px-8 text-white">
       <div className="mx-auto max-w-7xl space-y-8">
-        
         {/* Header */}
-        <div className="border-b border-slate-200 pb-6">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Administration
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
+        <div className="border-b border-navy-800 pb-6">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">Administration</h1>
+          <p className="text-navy-300 text-sm mt-1">
             Supervisez le réseau d'ambassadeurs et validez les versements de commissions.
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-6 rounded-2xl border border-navy-800 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Agents</span>
-              <span className="text-2xl font-black text-slate-800 mt-1">{totalAgentsCount}</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Total Agents
+              </span>
+              <span className="text-2xl font-black text-navy-100 mt-1">{totalAgentsCount}</span>
             </div>
-            <div className="rounded-xl bg-slate-100 text-slate-600 p-2.5">
+            <div className="rounded-xl bg-slate-100 text-navy-300 p-2.5">
               <Users className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-6 rounded-2xl border border-navy-800 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Agents Officiels</span>
-              <span className="text-2xl font-black text-emerald-600 mt-1">{officialAgentsCount}</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Agents Officiels
+              </span>
+              <span className="text-2xl font-black text-emerald-600 mt-1">
+                {officialAgentsCount}
+              </span>
             </div>
             <div className="rounded-xl bg-emerald-50 text-emerald-600 p-2.5">
               <Users2 className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-6 rounded-2xl border border-navy-800 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Filleuls</span>
-              <span className="text-2xl font-black text-slate-800 mt-1">{totalLeadsCount}</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Total Filleuls
+              </span>
+              <span className="text-2xl font-black text-navy-100 mt-1">{totalLeadsCount}</span>
             </div>
             <div className="rounded-xl bg-blue-50 text-blue-600 p-2.5">
               <FileCheck className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-navy-900/60 p-6 rounded-2xl border border-navy-800 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Comms Versées</span>
+              <span className="text-xs font-semibold text-navy-400 uppercase tracking-wider block">
+                Comms Versées
+              </span>
               <span className="text-2xl font-black text-amber-600 mt-1">
-                {formatCurrency(totalPaid, 'XOF')}
+                {formatCurrency(totalPaid, "XOF")}
               </span>
             </div>
             <div className="rounded-xl bg-amber-50 text-amber-600 p-2.5">
@@ -332,15 +350,14 @@ const AdminPage: React.FC = () => {
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-3 gap-8">
-          
           {/* Left / Middle: Agents list */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">
+          <div className="lg:col-span-2 bg-navy-900/60 rounded-2xl border border-navy-800 p-6 shadow-sm space-y-6">
+            <h3 className="text-lg font-bold text-white border-b border-navy-800 pb-3">
               Liste des Ambassadeurs
             </h3>
 
             {agents.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">
+              <div className="text-center py-10 text-navy-400">
                 <Users className="mx-auto h-10 w-10 text-slate-300 mb-2" />
                 <p>Aucun agent enregistré pour le moment.</p>
               </div>
@@ -348,7 +365,7 @@ const AdminPage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <tr className="text-xs font-bold text-navy-400 uppercase tracking-wider border-b border-navy-800">
                       <th className="pb-3">Nom / Contact</th>
                       <th className="pb-3">Statut</th>
                       <th className="pb-3">Niveau / Placements</th>
@@ -356,33 +373,44 @@ const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {agents.map(agent => (
-                      <tr key={agent.id} className="hover:bg-slate-50 transition-colors">
+                    {agents.map((agent) => (
+                      <tr key={agent.id} className="hover:bg-navy-950 transition-colors">
                         <td className="py-3.5 pr-2">
-                          <div className="font-semibold text-slate-800">{agent.nom}</div>
-                          <div className="text-xs text-slate-400 mt-0.5">{agent.email}</div>
-                          <div className="text-xs text-slate-400">{agent.whatsapp}</div>
+                          <div className="font-semibold text-navy-100">{agent.nom}</div>
+                          <div className="text-xs text-navy-400 mt-0.5">{agent.email}</div>
+                          <div className="text-xs text-navy-400">{agent.whatsapp}</div>
                         </td>
                         <td className="py-3.5 pr-2">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
-                            agent.statut === 'officiel' 
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                              : agent.statut === 'essai'
-                              ? 'bg-blue-50 text-blue-700 border-blue-100'
-                              : agent.statut === 'quiz_failed'
-                              ? 'bg-rose-50 text-rose-700 border-rose-100'
-                              : 'bg-slate-50 text-slate-500 border-slate-100'
-                          }`}>
-                            {agent.statut === 'officiel' ? 'Officiel' : agent.statut === 'essai' ? 'Essai' : agent.statut === 'quiz_failed' ? 'Quiz Échoué' : 'Quiz Attente'}
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
+                              agent.statut === "officiel"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                : agent.statut === "essai"
+                                  ? "bg-blue-50 text-blue-700 border-blue-100"
+                                  : agent.statut === "quiz_failed"
+                                    ? "bg-rose-50 text-rose-700 border-rose-100"
+                                    : "bg-navy-950 text-navy-300 border-navy-800"
+                            }`}
+                          >
+                            {agent.statut === "officiel"
+                              ? "Officiel"
+                              : agent.statut === "essai"
+                                ? "Essai"
+                                : agent.statut === "quiz_failed"
+                                  ? "Quiz Échoué"
+                                  : "Quiz Attente"}
                           </span>
                         </td>
                         <td className="py-3.5 pr-2">
                           <div className="flex flex-col gap-1 items-start">
                             <TierBadge tier={agent.tier} />
-                            <span className="text-xs text-slate-500 font-semibold">{agent.placements_count} placement{agent.placements_count > 1 ? 's' : ''}</span>
+                            <span className="text-xs text-navy-300 font-semibold">
+                              {agent.placements_count} placement
+                              {agent.placements_count > 1 ? "s" : ""}
+                            </span>
                           </div>
                         </td>
-                        <td className="py-3.5 font-mono text-xs text-slate-600 font-semibold">
+                        <td className="py-3.5 font-mono text-xs text-navy-300 font-semibold">
                           {agent.code_parrainage}
                         </td>
                       </tr>
@@ -394,47 +422,49 @@ const AdminPage: React.FC = () => {
           </div>
 
           {/* Right: Pending payouts */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
-                Paiements en Attente
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Total à verser : <strong className="text-slate-700">{formatCurrency(totalPending, 'XOF')}</strong>
+          <div className="bg-navy-900/60 rounded-2xl border border-navy-800 p-6 shadow-sm space-y-6">
+            <div className="border-b border-navy-800 pb-3">
+              <h3 className="text-lg font-bold text-white">Paiements en Attente</h3>
+              <p className="text-xs text-navy-400 mt-0.5">
+                Total à verser :{" "}
+                <strong className="text-navy-200">{formatCurrency(totalPending, "XOF")}</strong>
               </p>
             </div>
 
             {pendingPayouts.length === 0 ? (
-              <div className="text-center py-10 space-y-2 text-slate-400">
+              <div className="text-center py-10 space-y-2 text-navy-400">
                 <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
                 <p className="text-xs">Tous les paiements sont à jour !</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                {pendingPayouts.map(comm => (
-                  <div key={comm.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3">
+                {pendingPayouts.map((comm) => (
+                  <div
+                    key={comm.id}
+                    className="p-4 rounded-xl border border-navy-800 bg-navy-950/50 space-y-3"
+                  >
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                          {comm.type === 'placement' ? 'Commission Placement' : 'Bonus Palier'}
+                        <span className="text-[10px] font-bold text-navy-400 uppercase tracking-wider block">
+                          {comm.type === "placement" ? "Commission Placement" : "Bonus Palier"}
                         </span>
-                        <span className="text-xs font-semibold text-slate-700 mt-0.5 block">
+                        <span className="text-xs font-semibold text-navy-200 mt-0.5 block">
                           Agent : {getAgentName(comm.agent_id)}
                         </span>
-                        <span className="text-[11px] text-slate-400 block">
-                          {comm.type === 'placement' && comm.lead_id
+                        <span className="text-[11px] text-navy-400 block">
+                          {comm.type === "placement" && comm.lead_id
                             ? `Filleul : ${getLeadName(comm.lead_id)}`
-                            : 'Récompense de palier'}
+                            : "Récompense de palier"}
                         </span>
                       </div>
                       <div className="text-right">
                         {/* Display currency properly */}
-                        <span className="font-bold text-slate-900 text-sm block">
-                          {formatCurrency(comm.montant, 'XOF')}
+                        <span className="font-bold text-white text-sm block">
+                          {formatCurrency(comm.montant, "XOF")}
                         </span>
                       </div>
                     </div>
-                    
+
                     <button
                       onClick={() => handleMarkAsPaid(comm.id)}
                       disabled={updatingCommId === comm.id}
@@ -457,24 +487,23 @@ const AdminPage: React.FC = () => {
               </div>
             )}
           </div>
-
         </div>
 
         {/* Commercials management (round-robin) */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-lg font-bold text-slate-900">Commerciaux (Round-Robin)</h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Gérez l'équipe qui reçoit les leads. Le compte de connexion d'un commercial doit utiliser
-              le <strong>même email</strong> que celui renseigné ici.
+        <div className="bg-navy-900/60 rounded-2xl border border-navy-800 p-6 shadow-sm space-y-5">
+          <div className="border-b border-navy-800 pb-3">
+            <h3 className="text-lg font-bold text-white">Commerciaux (Round-Robin)</h3>
+            <p className="text-xs text-navy-400 mt-0.5">
+              Gérez l'équipe qui reçoit les leads. Le compte de connexion d'un commercial doit
+              utiliser le <strong>même email</strong> que celui renseigné ici.
             </p>
           </div>
 
           <div className="space-y-3">
             {rrStates.length === 0 ? (
-              <p className="text-sm text-slate-400">Aucun commercial configuré.</p>
+              <p className="text-sm text-navy-400">Aucun commercial configuré.</p>
             ) : (
-              rrStates.map(row => (
+              rrStates.map((row) => (
                 <CommercialRow
                   key={row.id}
                   row={row}
@@ -487,33 +516,39 @@ const AdminPage: React.FC = () => {
           </div>
 
           {/* Add commercial */}
-          <div className="border-t border-slate-100 pt-5">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Ajouter un commercial</h4>
+          <div className="border-t border-navy-800 pt-5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-navy-400 mb-3">
+              Ajouter un commercial
+            </h4>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 value={newCommercial.commercial}
-                onChange={e => setNewCommercial(c => ({ ...c, commercial: e.target.value }))}
+                onChange={(e) => setNewCommercial((c) => ({ ...c, commercial: e.target.value }))}
                 placeholder="Nom"
                 className={`${inputCls} sm:max-w-[160px]`}
               />
               <input
                 value={newCommercial.email}
-                onChange={e => setNewCommercial(c => ({ ...c, email: e.target.value }))}
+                onChange={(e) => setNewCommercial((c) => ({ ...c, email: e.target.value }))}
                 placeholder="email@kpb..."
                 className={inputCls}
               />
               <input
                 value={newCommercial.whatsapp}
-                onChange={e => setNewCommercial(c => ({ ...c, whatsapp: e.target.value }))}
+                onChange={(e) => setNewCommercial((c) => ({ ...c, whatsapp: e.target.value }))}
                 placeholder="+227..."
                 className={`${inputCls} sm:max-w-[170px]`}
               />
               <button
                 onClick={handleAddCommercial}
-                disabled={busyCommercial === 'add'}
+                disabled={busyCommercial === "add"}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 transition-colors disabled:opacity-50 shrink-0"
               >
-                {busyCommercial === 'add' ? <Loader2 className="animate-spin h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                {busyCommercial === "add" ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  <UserPlus className="h-4 w-4" />
+                )}
                 Ajouter
               </button>
             </div>
@@ -521,25 +556,26 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* Users & Roles management */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
-          <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-slate-500" />
+        <div className="bg-navy-900/60 rounded-2xl border border-navy-800 p-6 shadow-sm space-y-5">
+          <div className="border-b border-navy-800 pb-3 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-navy-300" />
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Utilisateurs & Rôles</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Promouvez un utilisateur en commercial ou admin. Pour qu'un commercial reçoive des leads,
-                ajoutez-le aussi dans la section Round-Robin avec le <strong>même email</strong>.
+              <h3 className="text-lg font-bold text-white">Utilisateurs & Rôles</h3>
+              <p className="text-xs text-navy-400 mt-0.5">
+                Promouvez un utilisateur en commercial ou admin. Pour qu'un commercial reçoive des
+                leads, ajoutez-le aussi dans la section Round-Robin avec le{" "}
+                <strong>même email</strong>.
               </p>
             </div>
           </div>
 
           {users.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun utilisateur.</p>
+            <p className="text-sm text-navy-400">Aucun utilisateur.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                  <tr className="text-xs font-bold text-navy-400 uppercase tracking-wider border-b border-navy-800">
                     <th className="pb-3">Nom</th>
                     <th className="pb-3">Email</th>
                     <th className="pb-3">Rôle actuel</th>
@@ -547,35 +583,41 @@ const AdminPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {users.map(u => {
+                  {users.map((u) => {
                     const isSelf = user?.id === u.id;
                     const busy = updatingRoleUserId === u.id;
                     return (
-                      <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 pr-2 font-semibold text-slate-800">
-                          {u.nom || '—'}
-                          {isSelf && <span className="ml-2 text-[10px] uppercase text-slate-400">(vous)</span>}
+                      <tr key={u.id} className="hover:bg-navy-950 transition-colors">
+                        <td className="py-3 pr-2 font-semibold text-navy-100">
+                          {u.nom || "—"}
+                          {isSelf && (
+                            <span className="ml-2 text-[10px] uppercase text-navy-400">(vous)</span>
+                          )}
                         </td>
-                        <td className="py-3 pr-2 text-slate-500">{u.email}</td>
+                        <td className="py-3 pr-2 text-navy-300">{u.email}</td>
                         <td className="py-3 pr-2">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
-                            u.role === 'admin'
-                              ? 'bg-purple-50 text-purple-700 border-purple-100'
-                              : u.role === 'commercial'
-                              ? 'bg-blue-50 text-blue-700 border-blue-100'
-                              : 'bg-slate-50 text-slate-600 border-slate-100'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
+                              u.role === "admin"
+                                ? "bg-purple-50 text-purple-700 border-purple-100"
+                                : u.role === "commercial"
+                                  ? "bg-blue-50 text-blue-700 border-blue-100"
+                                  : "bg-navy-950 text-navy-300 border-navy-800"
+                            }`}
+                          >
                             {u.role}
                           </span>
                         </td>
                         <td className="py-3 text-right">
                           <div className="inline-flex items-center gap-2">
-                            {busy && <Loader2 className="animate-spin h-3.5 w-3.5 text-slate-400" />}
+                            {busy && <Loader2 className="animate-spin h-3.5 w-3.5 text-navy-400" />}
                             <select
                               value={u.role}
                               disabled={isSelf || busy}
-                              onChange={e => handleChangeRole(u.id, e.target.value as AdminUserRow['role'])}
-                              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                              onChange={(e) =>
+                                handleChangeRole(u.id, e.target.value as AdminUserRow["role"])
+                              }
+                              className="rounded-lg border border-navy-800 px-2 py-1.5 text-xs text-navy-200 bg-navy-900/60 focus:outline-none focus:ring-1 focus:ring-gold-500 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <option value="agent">agent</option>
                               <option value="commercial">commercial</option>
@@ -591,11 +633,15 @@ const AdminPage: React.FC = () => {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
 };
 export const Route = createFileRoute("/_authenticated/admin")({
+  beforeLoad: ({ context }) => {
+    if (context.profile?.role !== "admin") {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: AdminPage,
 });

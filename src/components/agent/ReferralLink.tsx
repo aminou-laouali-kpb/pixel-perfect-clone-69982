@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Copy, Check, Share2 } from 'lucide-react';
+import React, { useState } from "react";
+import { Copy, Check, Share2 } from "lucide-react";
 
 interface ReferralLinkProps {
   code: string;
@@ -15,7 +15,7 @@ export const ReferralLink: React.FC<ReferralLinkProps> = ({ code }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy link:', err);
+      console.error("Failed to copy link:", err);
     }
   };
 
@@ -23,7 +23,7 @@ export const ReferralLink: React.FC<ReferralLinkProps> = ({ code }) => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Devenez Ambassadeur KPB Education',
+          title: "Devenez Ambassadeur KPB Education",
           text: `Inscris-toi sur KPB Education via mon lien d'ambassadeur pour tes études à l'étranger !`,
           url: link,
         });
@@ -41,7 +41,7 @@ export const ReferralLink: React.FC<ReferralLinkProps> = ({ code }) => {
       <label className="block text-xs font-semibold text-navy-400 uppercase tracking-wider">
         Votre Lien de Parrainage Personnel
       </label>
-      
+
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <input

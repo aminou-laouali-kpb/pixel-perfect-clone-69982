@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile, Agent } from "@/types";
+import { logger } from "@/lib/logger";
 
 interface AuthContextType {
   user: User | null;
@@ -22,7 +23,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refetchAuth = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const currentUser = session?.user ?? null;
 
       if (!currentUser) {
@@ -42,14 +45,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (profileData) {
-        setProfile(profileData as unknown as Profile);
-        if ((profileData as { role: string }).role === "agent") {
+        const nextProfile = profileData as Profile;
+        setProfile(nextProfile);
+        if (nextProfile.role === "agent") {
           const { data: agentData } = await supabase
             .from("agents")
             .select("*")
             .eq("id", currentUser.id)
             .maybeSingle();
-          setAgent((agentData as unknown as Agent) ?? null);
+          setAgent((agentData as Agent | null) ?? null);
         } else {
           setAgent(null);
         }
@@ -58,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAgent(null);
       }
     } catch (err) {
-      console.error("Auth check failed:", err);
+      logger.error("Auth check failed", err);
     } finally {
       setLoading(false);
     }
@@ -66,21 +70,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     setLoading(true);
-    try { await supabase.auth.signOut(); } finally {
-      setUser(null); setProfile(null); setAgent(null); setLoading(false);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setAgent(null);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     refetchAuth();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
         refetchAuth();
       } else if (event === "SIGNED_OUT") {
-        setUser(null); setProfile(null); setAgent(null); setLoading(false);
+        setUser(null);
+        setProfile(null);
+        setAgent(null);
+        setLoading(false);
       }
     });
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [refetchAuth]);
 
   return (
