@@ -1,13 +1,26 @@
 import React from "react";
-import { Lead } from "@/types";
+import { Commission, Lead } from "@/types";
 import { cn, formatCurrency, whatsappLink } from "@/lib/utils";
 import { Calendar, Compass, MessageCircle, Wallet } from "lucide-react";
 
 interface FilleulCardProps {
   lead: Lead;
+  commissions?: Commission[];
 }
 
-export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
+function apportLabel(lead: Lead, c: Commission): string {
+  if (c.statut === "payable" || c.statut === "paid") {
+    const devise = (c.devise as "XOF" | "USD") || "XOF";
+    return `Payable / payé : ${formatCurrency(Number(c.montant), devise)}`;
+  }
+  if (c.statut === "caduque") return "Caducité — aucune somme due";
+  if (lead.scolarite_soldee_at && !lead.ecole_commission_recue_at) {
+    return "En attente du versement de l'école";
+  }
+  return "En attente du règlement de la scolarité par l'étudiant";
+}
+
+export const FilleulCard: React.FC<FilleulCardProps> = ({ lead, commissions = [] }) => {
   const getStatusStyle = (status: Lead["statut"]) => {
     switch (status) {
       case "nouveau":
@@ -47,6 +60,9 @@ export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
     month: "short",
     year: "numeric",
   });
+
+  const placement = commissions.find((c) => c.type === "placement");
+  const apport = commissions.find((c) => c.type === "apport_ecole");
 
   return (
     <div className="rounded-2xl border border-navy-850 bg-navy-900/30 p-5 space-y-4 hover:border-navy-800 transition-colors">
@@ -99,22 +115,42 @@ export const FilleulCard: React.FC<FilleulCardProps> = ({ lead }) => {
         </div>
       </div>
 
-      {/* Commissions summary */}
-      <div className="flex justify-between items-center pt-3 border-t border-navy-850">
+      <div className="pt-3 border-t border-navy-850 space-y-2">
         <span className="text-xs text-navy-400 flex items-center gap-1">
           <Wallet className="h-3.5 w-3.5 text-gold-500" />
-          Commissions accumulées :
+          Commissions (séparées)
         </span>
-        <div className="text-right">
-          {/* Placement commission once the deposit is paid / placed */}
-          {lead.commission_amount > 0 ? (
-            <div className="text-sm font-bold text-gold-400">
-              +{formatCurrency(lead.commission_amount, "XOF")}
-            </div>
-          ) : (
-            <span className="text-xs text-navy-500 font-medium">Aucun gain validé</span>
-          )}
-        </div>
+        {placement ? (
+          <div className="flex justify-between text-xs gap-2">
+            <span className="text-navy-300">Commission de service</span>
+            <span className="text-gold-400 font-semibold text-right">
+              {formatCurrency(Number(placement.montant), "XOF")}
+              {placement.payable_at
+                ? ` · Payable le ${new Date(placement.payable_at).toLocaleDateString("fr-FR")}`
+                : ""}
+            </span>
+          </div>
+        ) : lead.commission_amount > 0 ? (
+          <div className="flex justify-between text-xs">
+            <span className="text-navy-300">Commission de service</span>
+            <span className="text-gold-400 font-semibold">
+              {formatCurrency(lead.commission_amount, "XOF")}
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-navy-500">Aucun gain service validé</span>
+        )}
+        {apport && (
+          <div className="flex justify-between text-xs gap-2">
+            <span className="text-navy-300">Commission d&apos;apport</span>
+            <span className="text-navy-200 font-medium text-right">
+              {apport.montant_previsionnel != null && Number(apport.montant) === 0
+                ? `Prévisionnel ${formatCurrency(Number(apport.montant_previsionnel), "XOF")} · `
+                : ""}
+              {apportLabel(lead, apport)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

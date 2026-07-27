@@ -103,6 +103,11 @@ const DashboardPage: React.FC = () => {
     return <Navigate to="/quiz" replace />;
   }
 
+  // Contract gate: signed contract required before referral activity.
+  if (!agent.contrat_signe_at) {
+    return <Navigate to="/contrat" replace />;
+  }
+
   // Calculate statistics
   const totalLeads = leads.length;
   const acomptesPayes = leads.filter(
@@ -112,30 +117,47 @@ const DashboardPage: React.FC = () => {
     (l) => l.statut === "nouveau" || l.statut === "contacte" || l.statut === "qualifie",
   ).length;
 
-  // Toutes les commissions (placement + bonus paliers) sont en FCFA (XOF).
-  const totalCommissionsPaid = commissions
-    .filter((c) => c.statut === "paid")
+  const disponible = commissions
+    .filter((c) => c.statut === "payable" || c.statut === "paid")
+    .filter((c) => c.type !== "apport_ecole" || c.statut === "paid" || c.statut === "payable")
+    .filter(
+      (c) =>
+        c.condition_paiement !== "encaissement_ecole" ||
+        c.statut === "payable" ||
+        c.statut === "paid",
+    )
+    .reduce((sum, c) => {
+      // Never sum provisional apport into available: only firm montant when payable/paid
+      if (c.type === "apport_ecole" && c.statut === "attente_ecole") return sum;
+      return sum + Number(c.montant);
+    }, 0);
+
+  const enAttenteService = commissions
+    .filter((c) => c.statut === "pending" && c.condition_paiement !== "encaissement_ecole")
     .reduce((sum, c) => sum + Number(c.montant), 0);
 
-  const totalCommissionsPending = commissions
-    .filter((c) => c.statut === "pending")
-    .reduce((sum, c) => sum + Number(c.montant), 0);
+  const enAttenteEcole = commissions
+    .filter((c) => c.type === "apport_ecole" && c.statut === "attente_ecole")
+    .reduce((sum, c) => sum + Number(c.montant_previsionnel ?? c.montant), 0);
 
-  // Calculate next tier thresholds
+  const totalCommissionsPending = enAttenteService;
+
+  const periodeCount = agent.placements_periode ?? agent.placements_count;
+
+  // Calculate next tier thresholds (période contractuelle)
   let nextTierLabel: string;
   let placementsRequired = 0;
   let tierProgress: number;
 
   if (agent.tier === "bronze") {
     nextTierLabel = "Argent";
-    placementsRequired = 3;
-    tierProgress = Math.min((agent.placements_count / 3) * 100, 100);
+    placementsRequired = 6;
+    tierProgress = Math.min((periodeCount / 6) * 100, 100);
   } else if (agent.tier === "argent") {
     nextTierLabel = "Élite";
-    placementsRequired = 10;
-    // Progress between 3 and 10 placements
-    const progressPlacements = agent.placements_count - 3;
-    tierProgress = Math.min((progressPlacements / 7) * 100, 100);
+    placementsRequired = 11;
+    const progressPlacements = Math.max(periodeCount - 6, 0);
+    tierProgress = Math.min((progressPlacements / 5) * 100, 100);
   } else {
     nextTierLabel = "Tier Maximum Atteint";
     tierProgress = 100;
@@ -230,8 +252,22 @@ const DashboardPage: React.FC = () => {
                     {formatCurrency(totalCommissionsPending, "XOF")}
                   </div>
                   <span className="text-xs text-navy-400 block mt-2">
-                    Commissions + bonus paliers à venir
+                    Service / bonus (délai 45 j) — hors commission d&apos;apport école
                   </span>
+                  {enAttenteEcole > 0 && (
+                    <div className="text-xs text-navy-400 border-t border-navy-850 pt-3 mt-3">
+                      Apport école (prévisionnel) :{" "}
+                      <span className="text-gold-400 font-semibold">
+                        {formatCurrency(enAttenteEcole, "XOF")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-xs text-navy-400 border-t border-navy-850 pt-3 mt-3">
+                    Disponible / payé :{" "}
+                    <span className="text-emerald-400 font-semibold">
+                      {formatCurrency(disponible, "XOF")}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-xs text-navy-400 border-t border-navy-850 pt-4 mt-6">
                   Vos gains de placement seront débloqués à votre passage au statut officiel.
@@ -268,14 +304,14 @@ const DashboardPage: React.FC = () => {
                 <div>
                   <h3 className="font-bold text-white text-lg">Ambassadeur officiel KPB</h3>
                   <p className="text-sm text-navy-300 mt-1">
-                    {agent.placements_count} placement{agent.placements_count > 1 ? "s" : ""} réussi
-                    {agent.placements_count > 1 ? "s" : ""}.
+                    {periodeCount} placement{periodeCount > 1 ? "s" : ""} cette année contractuelle
+                    ({agent.placements_count} à vie).
                     {agent.tier !== "elite" ? (
                       <>
                         {" "}
                         Prochain objectif :{" "}
                         <strong className="text-gold-400">{nextTierLabel}</strong> (Requis :{" "}
-                        {placementsRequired} placements)
+                        {placementsRequired} placements période)
                       </>
                     ) : (
                       " Vous avez atteint le niveau maximum d'Élite !"
@@ -286,7 +322,7 @@ const DashboardPage: React.FC = () => {
               {agent.tier !== "elite" && (
                 <div className="flex-shrink-0 flex flex-col items-end">
                   <div className="text-xs text-navy-400 font-semibold mb-1">
-                    Progression : {agent.placements_count} / {placementsRequired}
+                    Progression : {periodeCount} / {placementsRequired}
                   </div>
                   <div className="h-2 w-48 rounded-full bg-navy-900 border border-navy-850 overflow-hidden">
                     <div
@@ -315,19 +351,29 @@ const DashboardPage: React.FC = () => {
                 description={`${agent.placements_count} placements validés`}
               />
               <StatCard
-                label="Gains Confirmés"
-                value={formatCurrency(totalCommissionsPaid, "XOF")}
+                label="Disponible / payé"
+                value={formatCurrency(disponible, "XOF")}
                 icon={<Wallet className="h-5 w-5" />}
                 color="gold"
-                description={`${formatCurrency(totalCommissionsPending, "XOF")} en attente`}
+                description={`Service en attente : ${formatCurrency(enAttenteService, "XOF")}`}
               />
               <StatCard
-                label="Classement équipe"
-                value={`#${agentRank}`}
+                label="Apport école (prévisionnel)"
+                value={formatCurrency(enAttenteEcole, "XOF")}
                 icon={<Trophy className="h-5 w-5" />}
                 color="rose"
-                description="Parmi tous les ambassadeurs"
+                description="Jamais additionné au disponible"
               />
+            </div>
+
+            {/* Dual counters note */}
+            <div className="rounded-2xl border border-navy-850 bg-navy-900/40 p-4 text-xs text-navy-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span>
+                La commission de service a une date certaine (délai 45 j). La commission
+                d&apos;apport reste « en attente du règlement de la scolarité / versement de
+                l&apos;école » — montant prévisionnel, hors solde disponible.
+              </span>
+              <span className="text-navy-400 shrink-0">Classement : #{agentRank}</span>
             </div>
 
             {/* Referral Link */}
@@ -349,7 +395,11 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
                   {leads.map((lead) => (
-                    <FilleulCard key={lead.id} lead={lead} />
+                    <FilleulCard
+                      key={lead.id}
+                      lead={lead}
+                      commissions={commissions.filter((c) => c.lead_id === lead.id)}
+                    />
                   ))}
                 </div>
               )}

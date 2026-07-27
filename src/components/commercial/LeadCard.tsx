@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Lead, LeadStatut } from "@/types";
 import { formatCurrency, STATUTS_LEAD, whatsappLink } from "@/lib/utils";
 import {
@@ -10,15 +10,34 @@ import {
   Save,
   StickyNote,
   Banknote,
+  ShieldCheck,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+
+type CampusOption = {
+  id: string;
+  ville: string;
+  pays: string;
+  eligible_prime: boolean;
+  ecoles: { nom: string } | null;
+};
 
 interface LeadCardProps {
   lead: Lead;
-  agentNom?: string; // Optional agent name
+  agentNom?: string;
   onStatusChange: (leadId: string, newStatus: LeadStatut) => Promise<void>;
   onSetMontant: (leadId: string, montant: number | null) => Promise<void>;
   onNotesSave: (leadId: string, notes: string) => Promise<void>;
+  onValidatePlacement: (args: {
+    leadId: string;
+    montant: number;
+    justificatif: string;
+    campusId: string | null;
+    commissionAttendue: number | null;
+  }) => Promise<void>;
+  onMarkScolariteSoldee: (leadId: string, justificatif: string) => Promise<void>;
   isNew?: boolean;
 }
 
@@ -28,6 +47,8 @@ export const LeadCard: React.FC<LeadCardProps> = ({
   onStatusChange,
   onSetMontant,
   onNotesSave,
+  onValidatePlacement,
+  onMarkScolariteSoldee,
   isNew = false,
 }) => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -37,12 +58,37 @@ export const LeadCard: React.FC<LeadCardProps> = ({
   const [savingMontant, setSavingMontant] = useState(false);
   const [notes, setNotes] = useState(lead.notes ?? "");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [campuses, setCampuses] = useState<CampusOption[]>([]);
+  const [campusId, setCampusId] = useState(lead.ecole_campus_id ?? "");
+  const [justificatif, setJustificatif] = useState(lead.justificatif_paiement_path ?? "");
+  const [commissionAttendue, setCommissionAttendue] = useState(
+    lead.ecole_commission_attendue != null ? String(lead.ecole_commission_attendue) : "",
+  );
+  const [validating, setValidating] = useState(false);
+  const [markingScolarite, setMarkingScolarite] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("ecoles_campus")
+        .select("id, ville, pays, eligible_prime, ecoles(nom)")
+        .eq("actif", true)
+        .order("pays");
+      if (!cancelled && data) setCampuses(data as unknown as CampusOption[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const montantNum = montant.trim() === "" ? null : Number(montant.replace(",", "."));
   const montantValid = montantNum === null || (Number.isFinite(montantNum) && montantNum >= 0);
   const montantDirty = montantNum !== (lead.montant_service ?? null);
   const notesDirty = (notes ?? "").trim() !== (lead.notes ?? "").trim();
   const waLink = whatsappLink(lead.whatsapp);
+  const attendueNum =
+    commissionAttendue.trim() === "" ? null : Number(commissionAttendue.replace(",", "."));
 
   const getStatusLabel = (status: LeadStatut) => {
     switch (status) {
@@ -96,12 +142,42 @@ export const LeadCard: React.FC<LeadCardProps> = ({
     }
   };
 
+  const handleValidate = async () => {
+    if (!montantNum || montantNum <= 0 || !justificatif.trim()) return;
+    setValidating(true);
+    try {
+      await onValidatePlacement({
+        leadId: lead.id,
+        montant: montantNum,
+        justificatif: justificatif.trim(),
+        campusId: campusId || null,
+        commissionAttendue:
+          attendueNum != null && Number.isFinite(attendueNum) ? attendueNum : null,
+      });
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleScolarite = async () => {
+    if (!justificatif.trim()) return;
+    setMarkingScolarite(true);
+    try {
+      await onMarkScolariteSoldee(lead.id, justificatif.trim());
+    } finally {
+      setMarkingScolarite(false);
+    }
+  };
+
   const formattedDate = new Date(lead.created_at).toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const canValidate =
+    Boolean(montantNum && montantNum > 0 && justificatif.trim()) && !lead.admission_confirmee_at;
 
   return (
     <div
@@ -120,7 +196,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({
       )}
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        {/* Profile detail */}
         <div className="flex items-start gap-4 flex-1">
           <div className="rounded-full bg-slate-100 text-slate-700 font-bold h-12 w-12 flex items-center justify-center shrink-0">
             {lead.nom.charAt(0).toUpperCase()}
@@ -163,13 +238,14 @@ export const LeadCard: React.FC<LeadCardProps> = ({
             <div className="text-[11px] text-slate-400 pt-1">
               Via Agent :{" "}
               <span className="font-semibold text-slate-700">{agentNom || "Agent Inconnu"}</span>
+              {lead.admission_confirmee_at && (
+                <span className="ml-2 text-emerald-600 font-semibold">· Admission confirmée</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Interactions panel */}
         <div className="flex flex-wrap items-center gap-4 md:justify-end">
-          {/* Montant du service payé (base de la commission) */}
           <div className="space-y-1">
             <span className="block text-[10px] text-slate-400 uppercase font-semibold">
               Montant service (FCFA)
@@ -190,7 +266,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({
               <button
                 onClick={handleMontantSave}
                 disabled={!montantDirty || !montantValid || savingMontant}
-                title="Enregistrer le montant (recalcule la commission)"
+                title="Enregistrer le montant"
                 className="inline-flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-900 text-white px-2.5 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {savingMontant ? (
@@ -202,7 +278,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({
             </div>
           </div>
 
-          {/* Status Dropdown */}
           <div className="space-y-1">
             <span className="block text-[10px] text-slate-400 uppercase font-semibold">
               Statut Lead
@@ -226,7 +301,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({
             </div>
           </div>
 
-          {/* Commission indicator */}
           <div className="space-y-1 text-left md:text-right border-l border-slate-100 pl-4">
             <span className="block text-[10px] text-slate-400 uppercase font-semibold">
               Comm. Agent (FCFA)
@@ -237,14 +311,86 @@ export const LeadCard: React.FC<LeadCardProps> = ({
                   {formatCurrency(lead.commission_amount, "XOF")}
                 </span>
               ) : (
-                <span className="text-slate-400">À calculer</span>
+                <span className="text-slate-400">À valider</span>
               )}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Notes */}
+      {/* Validation placement (art. 12 + Annexe 5) */}
+      <div className="border-t border-slate-100 pt-3 space-y-3">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Validation placement (admission + justificatif)
+        </div>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <select
+            value={campusId}
+            onChange={(e) => setCampusId(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 bg-white"
+          >
+            <option value="">Campus d&apos;inscription…</option>
+            {campuses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.ecoles?.nom ?? "École"} — {c.ville} ({c.pays})
+                {c.eligible_prime ? " · prime OK" : ""}
+              </option>
+            ))}
+          </select>
+          <input
+            value={justificatif}
+            onChange={(e) => setJustificatif(e.target.value)}
+            placeholder="Chemin / URL justificatif paiement"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700"
+          />
+          <input
+            type="number"
+            min="0"
+            value={commissionAttendue}
+            onChange={(e) => setCommissionAttendue(e.target.value)}
+            placeholder="Commission école attendue (prévisionnel)"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleValidate}
+              disabled={!canValidate || validating}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 text-xs font-bold disabled:opacity-40"
+            >
+              {validating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-3.5 w-3.5" />
+              )}
+              Valider placement
+            </button>
+            <button
+              type="button"
+              onClick={handleScolarite}
+              disabled={
+                !justificatif.trim() || Boolean(lead.scolarite_soldee_at) || markingScolarite
+              }
+              title="Scolarité 100 % réglée → prime si campus FR"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 text-xs font-bold disabled:opacity-40"
+            >
+              {markingScolarite ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <GraduationCap className="h-3.5 w-3.5" />
+              )}
+              Scolarité soldée
+            </button>
+          </div>
+        </div>
+        {lead.scolarite_soldee_at && (
+          <p className="text-[11px] text-emerald-600">
+            Scolarité soldée le {new Date(lead.scolarite_soldee_at).toLocaleDateString("fr-FR")}
+          </p>
+        )}
+      </div>
+
       <div className="border-t border-slate-100 pt-3">
         <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
           <StickyNote className="h-3.5 w-3.5" />

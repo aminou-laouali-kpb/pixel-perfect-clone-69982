@@ -22,11 +22,11 @@ describe("generateReferralCode", () => {
 });
 
 describe("calculateTier", () => {
-  it("maps placements to tiers", () => {
+  it("maps period placements to v3.1 tiers", () => {
     expect(calculateTier(0)).toBe("bronze");
-    expect(calculateTier(2)).toBe("bronze");
-    expect(calculateTier(3)).toBe("argent");
-    expect(calculateTier(10)).toBe("elite");
+    expect(calculateTier(5)).toBe("bronze");
+    expect(calculateTier(6)).toBe("argent");
+    expect(calculateTier(11)).toBe("elite");
   });
 });
 

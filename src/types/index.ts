@@ -2,11 +2,13 @@ export type Role = "agent" | "commercial" | "admin";
 export type AgentStatut = "quiz_pending" | "quiz_failed" | "essai" | "officiel";
 export type AgentTier = "bronze" | "argent" | "elite";
 export type LeadStatut = "nouveau" | "contacte" | "qualifie" | "acompte_paye" | "place";
-export type CommissionType = "placement" | "bonus_palier" | "bonus_dossier";
-export type CommissionStatut = "pending" | "paid";
+export type CommissionType =
+  "placement" | "apport_ecole" | "bonus_palier" | "prime_scolarite" | "bonus_dossier";
+export type CommissionStatut =
+  "pending" | "attente_ecole" | "payable" | "paid" | "gelee" | "annulee" | "caduque";
 
 export interface Profile {
-  id: string; // = auth.users.id
+  id: string;
   email: string;
   nom: string;
   role: Role;
@@ -14,7 +16,7 @@ export interface Profile {
 }
 
 export interface Agent {
-  id: string; // = auth.users.id
+  id: string;
   nom: string;
   email: string;
   whatsapp: string;
@@ -23,30 +25,43 @@ export interface Agent {
   motivation: string | null;
   statut: AgentStatut;
   tier: AgentTier;
-  code_parrainage: string; // unique, generated at signup
-  parrain_id: string | null; // FK -> agents.id (the agent who referred this one)
+  code_parrainage: string;
+  parrain_id: string | null;
   quiz_score: number | null;
   quiz_passed_at: string | null;
   quiz_retry_at: string | null;
-  placements_count: number; // calculated by trigger
+  placements_count: number;
+  date_naissance?: string | null;
+  contrat_signe_at?: string | null;
+  contrat_id?: string | null;
+  periode_debut?: string | null;
+  placements_periode?: number;
   created_at: string;
 }
 
 export interface Lead {
   id: string;
-  agent_id: string; // FK -> agents
-  assigned_to: string; // Commercial name (Josphin / Donald / Richard)
+  agent_id: string;
+  assigned_to: string;
   nom: string;
   email: string | null;
   whatsapp: string | null;
   pays: string;
   destination: string;
   statut: LeadStatut;
-  /** @deprecated Legacy field — bonus dossier removed; kept for DB compatibility. */
+  /** @deprecated Legacy field */
   bonus_paid: boolean;
-  montant_service: number | null; // montant réel du service payé (base de la commission)
-  commission_amount: number; // commission de placement calculée (taux × montant_service)
+  montant_service: number | null;
+  commission_amount: number;
   notes: string | null;
+  ecole_campus_id?: string | null;
+  admission_confirmee_at?: string | null;
+  scolarite_soldee_at?: string | null;
+  justificatif_paiement_path?: string | null;
+  ecole_commission_attendue?: number | null;
+  ecole_commission_devise?: string | null;
+  ecole_commission_recue_at?: string | null;
+  ecole_commission_montant?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,10 +69,29 @@ export interface Lead {
 export interface Commission {
   id: string;
   agent_id: string;
-  lead_id: string | null; // null pour les bonus paliers (non rattachés à un lead)
+  lead_id: string | null;
   type: CommissionType;
   montant: number;
   statut: CommissionStatut;
+  taux_applique?: number | null;
+  bareme_version?: string | null;
+  devise?: string;
+  assiette?: string;
+  condition_paiement?: string;
+  montant_previsionnel?: number | null;
+  payable_at?: string | null;
+  created_at: string;
+}
+
+export interface Contract {
+  id: string;
+  agent_id: string;
+  version: string;
+  bareme_snapshot: unknown;
+  pdf_path: string;
+  sha256: string;
+  status: "draft" | "signed" | "superseded" | "revoked";
+  signed_at: string | null;
   created_at: string;
 }
 

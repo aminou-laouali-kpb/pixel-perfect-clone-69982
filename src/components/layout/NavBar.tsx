@@ -44,15 +44,26 @@ export const NavBar: React.FC = () => {
                   agent &&
                   agent.statut !== "quiz_pending" &&
                   agent.statut !== "quiz_failed" && (
-                    <Link
-                      to="/dashboard"
-                      className={cn(
-                        "text-sm transition-colors",
-                        isCurrent("/dashboard") ? activeLinkColor : linkColor,
-                      )}
-                    >
-                      Tableau de bord
-                    </Link>
+                    <>
+                      <Link
+                        to="/dashboard"
+                        className={cn(
+                          "text-sm transition-colors",
+                          isCurrent("/dashboard") ? activeLinkColor : linkColor,
+                        )}
+                      >
+                        Tableau de bord
+                      </Link>
+                      <Link
+                        to="/contrat"
+                        className={cn(
+                          "text-sm transition-colors",
+                          isCurrent("/contrat") ? activeLinkColor : linkColor,
+                        )}
+                      >
+                        Contrat
+                      </Link>
+                    </>
                   )}
                 {(profile.role === "commercial" || profile.role === "admin") && (
                   <Link
@@ -150,16 +161,28 @@ export const NavBar: React.FC = () => {
                   agent &&
                   agent.statut !== "quiz_pending" &&
                   agent.statut !== "quiz_failed" && (
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
-                        "block rounded-md px-3 py-2 text-base font-medium",
-                        isCurrent("/dashboard") ? activeLinkColor : linkColor,
-                      )}
-                    >
-                      Tableau de bord
-                    </Link>
+                    <>
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "block rounded-md px-3 py-2 text-base font-medium",
+                          isCurrent("/dashboard") ? activeLinkColor : linkColor,
+                        )}
+                      >
+                        Tableau de bord
+                      </Link>
+                      <Link
+                        to="/contrat"
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "block rounded-md px-3 py-2 text-base font-medium",
+                          isCurrent("/contrat") ? activeLinkColor : linkColor,
+                        )}
+                      >
+                        Contrat
+                      </Link>
+                    </>
                   )}
                 {(profile.role === "commercial" || profile.role === "admin") && (
                   <Link
