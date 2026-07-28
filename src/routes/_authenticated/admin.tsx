@@ -1,12 +1,14 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import React, { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/lib/supabase";
 import { Agent, Commission, Lead, RrState } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { deletePlatformUser, updatePlatformUser } from "@/lib/user-management.functions";
 import {
   Users,
   FileCheck,
@@ -32,6 +34,91 @@ type AdminUserRow = {
 
 const inputCls =
   "w-full rounded-lg border border-navy-800 px-3 py-2 text-sm text-navy-200 placeholder-navy-500 focus:outline-none focus:ring-1 focus:ring-gold-500";
+
+const UserRowEditor: React.FC<{
+  row: AdminUserRow;
+  agent?: Agent;
+  isSelf: boolean;
+  busyKey: string | null;
+  onSave: (input: {
+    userId: string;
+    nom: string;
+    email: string;
+    role: AdminUserRow["role"];
+  }) => void;
+  onDelete: (userId: string, label: string) => void;
+}> = ({ row, agent, isSelf, busyKey, onSave, onDelete }) => {
+  const [nom, setNom] = useState(row.nom ?? "");
+  const [email, setEmail] = useState(row.email);
+  const [role, setRole] = useState<AdminUserRow["role"]>(row.role);
+  const dirty = nom.trim() !== (row.nom ?? "") || email.trim() !== row.email || role !== row.role;
+  const saving = busyKey === `save-${row.id}`;
+  const deleting = busyKey === `delete-${row.id}`;
+
+  return (
+    <tr key={row.id} className="hover:bg-navy-950 transition-colors align-top">
+      <td className="py-3 pr-2">
+        <input
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          className="w-full rounded-lg border border-navy-800 px-2 py-1.5 text-sm text-navy-100 bg-navy-900/60"
+        />
+        {agent && (
+          <div className="mt-1 text-[11px] text-navy-400">
+            Agent · {agent.pays} · {agent.whatsapp}
+          </div>
+        )}
+        {isSelf && <div className="mt-1 text-[10px] uppercase text-navy-400">(vous)</div>}
+      </td>
+      <td className="py-3 pr-2">
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-lg border border-navy-800 px-2 py-1.5 text-sm text-navy-200 bg-navy-900/60"
+        />
+      </td>
+      <td className="py-3 pr-2">
+        <select
+          value={role}
+          disabled={isSelf}
+          onChange={(e) => setRole(e.target.value as AdminUserRow["role"])}
+          className="rounded-lg border border-navy-800 px-2 py-1.5 text-xs text-navy-200 bg-navy-900/60 focus:outline-none focus:ring-1 focus:ring-gold-500 disabled:opacity-40"
+        >
+          <option value="agent">agent</option>
+          <option value="commercial">commercial</option>
+          <option value="admin">admin</option>
+        </select>
+      </td>
+      <td className="py-3 text-right">
+        <div className="inline-flex items-center gap-2">
+          <button
+            onClick={() => onSave({ userId: row.id, nom, email, role })}
+            disabled={!dirty || saving}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-navy-950 text-xs font-bold px-3 py-2 transition-colors disabled:opacity-40"
+          >
+            {saving ? (
+              <Loader2 className="animate-spin h-3.5 w-3.5" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+          </button>
+          <button
+            onClick={() => onDelete(row.id, row.nom || row.email)}
+            disabled={isSelf || deleting}
+            className="inline-flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 px-3 py-2 transition-colors disabled:opacity-40"
+            title="Supprimer cet utilisateur"
+          >
+            {deleting ? (
+              <Loader2 className="animate-spin h-3.5 w-3.5" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 const CommercialRow: React.FC<{
   row: RrState;
@@ -117,6 +204,8 @@ const AdminPage: React.FC = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const updatePlatformUserFn = useServerFn(updatePlatformUser);
+  const deletePlatformUserFn = useServerFn(deletePlatformUser);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-data"],
@@ -130,7 +219,7 @@ const AdminPage: React.FC = () => {
   const rrStates = data?.rrStates ?? [];
   const users = data?.users ?? [];
 
-  const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null);
+  const [busyUserAction, setBusyUserAction] = useState<string | null>(null);
   const [updatingCommId, setUpdatingCommId] = useState<string | null>(null);
   const [busyCommercial, setBusyCommercial] = useState<string | null>(null);
   const [newCommercial, setNewCommercial] = useState({ commercial: "", email: "", whatsapp: "" });
@@ -158,22 +247,48 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: AdminUserRow["role"]) => {
-    setUpdatingRoleUserId(userId);
+  const handleSaveUser = async (input: {
+    userId: string;
+    nom: string;
+    email: string;
+    role: AdminUserRow["role"];
+  }) => {
+    setBusyUserAction(`save-${input.userId}`);
     try {
-      const { error } = await supabase.rpc("set_user_role", {
-        p_user_id: userId,
-        p_role: newRole,
-      });
-      if (error) throw error;
+      await updatePlatformUserFn({ data: input });
       await fetchData();
-      showToast("Rôle mis à jour.", "success");
+      showToast("Utilisateur mis à jour.", "success");
     } catch (err) {
-      logger.error("Error changing role:", err);
-      const msg = err instanceof Error ? err.message : "Erreur lors de la mise à jour du rôle.";
+      logger.error("Error updating user:", err);
+      const msg =
+        err instanceof Error ? err.message : "Erreur lors de la mise à jour de l'utilisateur.";
       showToast(msg, "error");
     } finally {
-      setUpdatingRoleUserId(null);
+      setBusyUserAction(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, label: string) => {
+    if (
+      !window.confirm(
+        `Supprimer ${label} ? Cette action supprimera aussi son compte d'authentification.`,
+      )
+    ) {
+      return;
+    }
+
+    setBusyUserAction(`delete-${userId}`);
+    try {
+      await deletePlatformUserFn({ data: { userId } });
+      await fetchData();
+      showToast("Utilisateur supprimé.", "success");
+    } catch (err) {
+      logger.error("Error deleting user:", err);
+      const msg =
+        err instanceof Error ? err.message : "Erreur lors de la suppression de l'utilisateur.";
+      showToast(msg, "error");
+    } finally {
+      setBusyUserAction(null);
     }
   };
 
@@ -584,53 +699,23 @@ const AdminPage: React.FC = () => {
                     <th className="pb-3">Nom</th>
                     <th className="pb-3">Email</th>
                     <th className="pb-3">Rôle actuel</th>
-                    <th className="pb-3 text-right">Changer</th>
+                    <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {users.map((u) => {
                     const isSelf = user?.id === u.id;
-                    const busy = updatingRoleUserId === u.id;
+                    const agent = agents.find((a) => a.id === u.id);
                     return (
-                      <tr key={u.id} className="hover:bg-navy-950 transition-colors">
-                        <td className="py-3 pr-2 font-semibold text-navy-100">
-                          {u.nom || "—"}
-                          {isSelf && (
-                            <span className="ml-2 text-[10px] uppercase text-navy-400">(vous)</span>
-                          )}
-                        </td>
-                        <td className="py-3 pr-2 text-navy-300">{u.email}</td>
-                        <td className="py-3 pr-2">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
-                              u.role === "admin"
-                                ? "bg-purple-50 text-purple-700 border-purple-100"
-                                : u.role === "commercial"
-                                  ? "bg-blue-50 text-blue-700 border-blue-100"
-                                  : "bg-navy-950 text-navy-300 border-navy-800"
-                            }`}
-                          >
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            {busy && <Loader2 className="animate-spin h-3.5 w-3.5 text-navy-400" />}
-                            <select
-                              value={u.role}
-                              disabled={isSelf || busy}
-                              onChange={(e) =>
-                                handleChangeRole(u.id, e.target.value as AdminUserRow["role"])
-                              }
-                              className="rounded-lg border border-navy-800 px-2 py-1.5 text-xs text-navy-200 bg-navy-900/60 focus:outline-none focus:ring-1 focus:ring-gold-500 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <option value="agent">agent</option>
-                              <option value="commercial">commercial</option>
-                              <option value="admin">admin</option>
-                            </select>
-                          </div>
-                        </td>
-                      </tr>
+                      <UserRowEditor
+                        key={u.id}
+                        row={u}
+                        agent={agent}
+                        isSelf={isSelf}
+                        busyKey={busyUserAction}
+                        onSave={handleSaveUser}
+                        onDelete={handleDeleteUser}
+                      />
                     );
                   })}
                 </tbody>
