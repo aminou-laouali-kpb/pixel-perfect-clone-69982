@@ -74,7 +74,7 @@ async function assertCanManageAgent(context: AuthedContext, agentId: string) {
   }
 }
 
-export const listManagedAgents = createServerFn({ method: "GET" })
+export const listManagedAgents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const role = await getCallerRole(context);
@@ -101,9 +101,14 @@ export const updateManagedAgent = createServerFn({ method: "POST" })
     await assertCanManageAgent(context, data.agentId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: existingAuth, error: existingAuthError } =
+      await supabaseAdmin.auth.admin.getUserById(data.agentId);
+    if (existingAuthError) throw new Error(existingAuthError.message);
+
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.agentId, {
       email: data.email,
       user_metadata: {
+        ...(existingAuth.user.user_metadata ?? {}),
         nom: data.nom,
         whatsapp: data.whatsapp,
         pays: data.pays,
@@ -155,9 +160,16 @@ export const updatePlatformUser = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: existingAuth, error: existingAuthError } =
+      await supabaseAdmin.auth.admin.getUserById(data.userId);
+    if (existingAuthError) throw new Error(existingAuthError.message);
+
+    const previousEmail = (existingAuth.user.email ?? "").toLowerCase();
+
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
       email: data.email,
       user_metadata: {
+        ...(existingAuth.user.user_metadata ?? {}),
         nom: data.nom,
       },
     });
@@ -176,6 +188,15 @@ export const updatePlatformUser = createServerFn({ method: "POST" })
 
     if (agentError && !agentError.message.toLowerCase().includes("0 rows")) {
       throw new Error(agentError.message);
+    }
+
+    // Keep round-robin commercial matching in sync when email changes.
+    if (previousEmail && previousEmail !== data.email) {
+      const { error: rrError } = await supabaseAdmin
+        .from("rr_state")
+        .update({ email: data.email })
+        .eq("email", previousEmail);
+      if (rrError) throw new Error(rrError.message);
     }
 
     return { ok: true as const };

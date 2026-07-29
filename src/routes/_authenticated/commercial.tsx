@@ -186,10 +186,15 @@ const CommercialPage: React.FC = () => {
     enabled: !authLoading && (profile?.role === "commercial" || profile?.role === "admin"),
   });
 
-  const { data: managedAgents = [], isLoading: managedAgentsLoading } = useQuery({
+  const {
+    data: managedAgents = [],
+    isLoading: managedAgentsLoading,
+    error: managedAgentsError,
+  } = useQuery({
     queryKey: ["managed-agents", profile?.id],
     queryFn: () => listManagedAgentsFn(),
     enabled: !authLoading && (profile?.role === "commercial" || profile?.role === "admin"),
+    retry: 1,
   });
 
   const leads = data?.leads ?? [];
@@ -471,15 +476,8 @@ const CommercialPage: React.FC = () => {
 
   // Commercials list is derived from rr_state so admin changes reflect everywhere.
   const commercialNames = rrStates.map((rr) => rr.commercial);
-  const myCommercialName =
-    profile?.email != null
-      ? rrStates.find((rr) => rr.email.toLowerCase() === profile.email.toLowerCase())?.commercial
-      : undefined;
-  const visibleLeads = isAdmin
-    ? leads
-    : myCommercialName
-      ? leads.filter((lead) => lead.assigned_to === myCommercialName)
-      : [];
+  // Leads are already scoped by RLS for commercials; only apply UI tabs for admin.
+  const visibleLeads = leads;
 
   // Filter leads: by commercial (admin tabs), by status, and by free-text search.
   const search = searchTerm.trim().toLowerCase();
@@ -618,7 +616,14 @@ const CommercialPage: React.FC = () => {
             <div className="text-xs text-navy-400">{managedAgents.length} agent(s)</div>
           </div>
 
-          {managedAgents.length === 0 ? (
+          {managedAgentsError ? (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              Impossible de charger les agents invités.{" "}
+              {managedAgentsError instanceof Error
+                ? managedAgentsError.message
+                : "Réessayez dans un instant."}
+            </div>
+          ) : managedAgents.length === 0 ? (
             <p className="text-sm text-navy-400">Aucun agent invité pour le moment.</p>
           ) : (
             <div className="grid xl:grid-cols-2 gap-4">
