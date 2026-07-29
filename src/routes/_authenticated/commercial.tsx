@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import { Lead, LeadStatut } from "@/types";
+import { Agent, Lead, LeadStatut, RrState } from "@/types";
 import { STATUTS_LEAD } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { useToast } from "@/hooks/useToast";
@@ -15,6 +15,11 @@ import RoundRobinIndicator from "@/components/commercial/RoundRobinIndicator";
 import LeadCard from "@/components/commercial/LeadCard";
 import { useServerFn } from "@tanstack/react-start";
 import { inviteAgent } from "@/lib/agents.functions";
+import {
+  deleteManagedAgent,
+  listManagedAgents,
+  updateManagedAgent,
+} from "@/lib/user-management.functions";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +31,116 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type RrStateBasic = { id: number; commercial: string; leads_total: number };
+const ManagedAgentCard: React.FC<{
+  agent: Agent;
+  busyKey: string | null;
+  onSave: (input: {
+    agentId: string;
+    nom: string;
+    email: string;
+    whatsapp: string;
+    pays: string;
+    niveau_etudes: string;
+    motivation?: string | null;
+  }) => void;
+  onDelete: (agentId: string, label: string) => void;
+}> = ({ agent, busyKey, onSave, onDelete }) => {
+  const [nom, setNom] = useState(agent.nom);
+  const [email, setEmail] = useState(agent.email);
+  const [whatsapp, setWhatsapp] = useState(agent.whatsapp);
+  const [pays, setPays] = useState(agent.pays);
+  const [niveauEtudes, setNiveauEtudes] = useState(agent.niveau_etudes);
+  const [motivation, setMotivation] = useState(agent.motivation ?? "");
+  const saving = busyKey === `save-${agent.id}`;
+  const deleting = busyKey === `delete-${agent.id}`;
+  const dirty =
+    nom !== agent.nom ||
+    email !== agent.email ||
+    whatsapp !== agent.whatsapp ||
+    pays !== agent.pays ||
+    niveauEtudes !== agent.niveau_etudes ||
+    motivation !== (agent.motivation ?? "");
+
+  return (
+    <div className="rounded-2xl border border-navy-800 bg-navy-900/60 p-5 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h4 className="font-bold text-white">{agent.nom}</h4>
+          <p className="text-xs text-navy-400">
+            {agent.code_parrainage} · {agent.statut}
+          </p>
+        </div>
+        <div className="text-xs text-navy-400">{agent.placements_count} placement(s)</div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        <input
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          placeholder="Nom complet"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+        <input
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="WhatsApp"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+        <input
+          value={pays}
+          onChange={(e) => setPays(e.target.value)}
+          placeholder="Pays"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+        <input
+          value={niveauEtudes}
+          onChange={(e) => setNiveauEtudes(e.target.value)}
+          placeholder="Niveau d'études"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+        <input
+          value={motivation}
+          onChange={(e) => setMotivation(e.target.value)}
+          placeholder="Motivation (optionnel)"
+          className="rounded-xl border border-navy-800 bg-navy-950/60 px-3 py-2 text-sm text-navy-100"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() =>
+            onSave({
+              agentId: agent.id,
+              nom,
+              email,
+              whatsapp,
+              pays,
+              niveau_etudes: niveauEtudes,
+              motivation: motivation || null,
+            })
+          }
+          disabled={!dirty || saving}
+          className="inline-flex items-center justify-center rounded-xl bg-gold-500 px-4 py-2 text-sm font-bold text-navy-950 hover:bg-gold-400 disabled:opacity-40"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </button>
+        <button
+          onClick={() => onDelete(agent.id, agent.nom)}
+          disabled={deleting}
+          className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-40"
+        >
+          {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Supprimer"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const inviteSchema = z.object({
   nom: z.string().trim().min(2, "Nom trop court"),
@@ -41,9 +155,9 @@ async function fetchCommercialData() {
   const [leadsRes, agentsRes, rrRes] = await Promise.all([
     supabase.from("leads").select("*").order("created_at", { ascending: false }),
     supabase.rpc("list_agents_basic"),
-    supabase.rpc("list_rr_state_basic"),
+    supabase.from("rr_state").select("*").order("id", { ascending: true }),
   ]);
-  const rrData = (rrRes.data as RrStateBasic[] | null) ?? [];
+  const rrData = (rrRes.data as RrState[] | null) ?? [];
   const sorted = [...rrData].sort((a, b) => {
     if (a.leads_total !== b.leads_total) return a.leads_total - b.leads_total;
     return a.id - b.id;
@@ -61,11 +175,20 @@ const CommercialPage: React.FC = () => {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === "admin";
+  const listManagedAgentsFn = useServerFn(listManagedAgents);
+  const updateManagedAgentFn = useServerFn(updateManagedAgent);
+  const deleteManagedAgentFn = useServerFn(deleteManagedAgent);
 
   const { data, isLoading } = useQuery({
     queryKey: ["commercial-data"],
     queryFn: fetchCommercialData,
     refetchInterval: 20_000,
+    enabled: !authLoading && (profile?.role === "commercial" || profile?.role === "admin"),
+  });
+
+  const { data: managedAgents = [], isLoading: managedAgentsLoading } = useQuery({
+    queryKey: ["managed-agents", profile?.id],
+    queryFn: () => listManagedAgentsFn(),
     enabled: !authLoading && (profile?.role === "commercial" || profile?.role === "admin"),
   });
 
@@ -79,6 +202,7 @@ const CommercialPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isSimulating, setIsSimulating] = useState(false);
   const [newLeadId, setNewLeadId] = useState<string | null>(null);
+  const [busyManagedAgent, setBusyManagedAgent] = useState<string | null>(null);
 
   const inviteAgentFn = useServerFn(inviteAgent);
   const [addAgentOpen, setAddAgentOpen] = useState(false);
@@ -90,6 +214,7 @@ const CommercialPage: React.FC = () => {
 
   const refetch = async () => {
     await queryClient.invalidateQueries({ queryKey: ["commercial-data"] });
+    await queryClient.invalidateQueries({ queryKey: ["managed-agents", profile?.id] });
   };
 
   const handleInviteAgent = inviteForm.handleSubmit(async (values) => {
@@ -112,6 +237,50 @@ const CommercialPage: React.FC = () => {
       setIsInviting(false);
     }
   });
+
+  const handleSaveManagedAgent = async (input: {
+    agentId: string;
+    nom: string;
+    email: string;
+    whatsapp: string;
+    pays: string;
+    niveau_etudes: string;
+    motivation?: string | null;
+  }) => {
+    setBusyManagedAgent(`save-${input.agentId}`);
+    try {
+      await updateManagedAgentFn({ data: input });
+      await refetch();
+      showToast("Agent mis à jour.", "success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de la mise à jour de l'agent.";
+      showToast(msg, "error");
+    } finally {
+      setBusyManagedAgent(null);
+    }
+  };
+
+  const handleDeleteManagedAgent = async (agentId: string, label: string) => {
+    if (
+      !window.confirm(
+        `Supprimer l'agent ${label} ? Son compte, ses leads et ses commissions seront supprimés.`,
+      )
+    ) {
+      return;
+    }
+
+    setBusyManagedAgent(`delete-${agentId}`);
+    try {
+      await deleteManagedAgentFn({ data: { agentId } });
+      await refetch();
+      showToast("Agent supprimé.", "success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de la suppression de l'agent.";
+      showToast(msg, "error");
+    } finally {
+      setBusyManagedAgent(null);
+    }
+  };
 
   // Update lead status
   const handleStatusChange = async (leadId: string, newStatus: LeadStatut) => {
@@ -302,10 +471,19 @@ const CommercialPage: React.FC = () => {
 
   // Commercials list is derived from rr_state so admin changes reflect everywhere.
   const commercialNames = rrStates.map((rr) => rr.commercial);
+  const myCommercialName =
+    profile?.email != null
+      ? rrStates.find((rr) => rr.email.toLowerCase() === profile.email.toLowerCase())?.commercial
+      : undefined;
+  const visibleLeads = isAdmin
+    ? leads
+    : myCommercialName
+      ? leads.filter((lead) => lead.assigned_to === myCommercialName)
+      : [];
 
   // Filter leads: by commercial (admin tabs), by status, and by free-text search.
   const search = searchTerm.trim().toLowerCase();
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = visibleLeads.filter((lead) => {
     if (activeFilter !== "Tous" && lead.assigned_to !== activeFilter) return false;
     if (statusFilter !== "all" && lead.statut !== statusFilter) return false;
     if (search) {
@@ -316,13 +494,13 @@ const CommercialPage: React.FC = () => {
     return true;
   });
 
-  const totalLeadsCount = leads.length;
-  const newLeadsCount = leads.filter((l) => l.statut === "nouveau").length;
-  const acomptesCount = leads.filter(
+  const totalLeadsCount = visibleLeads.length;
+  const newLeadsCount = visibleLeads.filter((l) => l.statut === "nouveau").length;
+  const acomptesCount = visibleLeads.filter(
     (l) => l.statut === "acompte_paye" || l.statut === "place",
   ).length;
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || managedAgentsLoading) {
     return (
       <div className="flex-1 bg-navy-950 flex items-center justify-center text-white">
         <div className="flex flex-col items-center space-y-4">
@@ -423,6 +601,38 @@ const CommercialPage: React.FC = () => {
               <TrendingUp className="h-5 w-5" />
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-navy-800 bg-navy-900/60 p-6 space-y-5">
+          <div className="flex items-center justify-between gap-3 border-b border-navy-800 pb-3">
+            <div>
+              <h3 className="text-lg font-bold text-white">
+                {isAdmin ? "Agents invités" : "Mes agents invités"}
+              </h3>
+              <p className="text-xs text-navy-400 mt-0.5">
+                {isAdmin
+                  ? "Vue globale des agents créés depuis l'espace commercial."
+                  : "Vous pouvez modifier ou supprimer les agents que vous avez invités."}
+              </p>
+            </div>
+            <div className="text-xs text-navy-400">{managedAgents.length} agent(s)</div>
+          </div>
+
+          {managedAgents.length === 0 ? (
+            <p className="text-sm text-navy-400">Aucun agent invité pour le moment.</p>
+          ) : (
+            <div className="grid xl:grid-cols-2 gap-4">
+              {managedAgents.map((agent) => (
+                <ManagedAgentCard
+                  key={agent.id}
+                  agent={agent as Agent}
+                  busyKey={busyManagedAgent}
+                  onSave={handleSaveManagedAgent}
+                  onDelete={handleDeleteManagedAgent}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Add-agent dialog */}

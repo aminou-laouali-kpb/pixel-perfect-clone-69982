@@ -27,6 +27,7 @@ export interface Agent {
   tier: AgentTier;
   code_parrainage: string;
   parrain_id: string | null;
+  invited_by_user_id?: string | null;
   quiz_score: number | null;
   quiz_passed_at: string | null;
   quiz_retry_at: string | null;

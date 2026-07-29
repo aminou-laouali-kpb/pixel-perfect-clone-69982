@@ -17,6 +17,7 @@ export type Database = {
           date_naissance: string | null;
           email: string;
           id: string;
+          invited_by_user_id: string | null;
           motivation: string | null;
           niveau_etudes: string;
           nom: string;
@@ -40,6 +41,7 @@ export type Database = {
           date_naissance?: string | null;
           email: string;
           id: string;
+          invited_by_user_id?: string | null;
           motivation?: string | null;
           niveau_etudes: string;
           nom: string;
@@ -63,6 +65,7 @@ export type Database = {
           date_naissance?: string | null;
           email?: string;
           id?: string;
+          invited_by_user_id?: string | null;
           motivation?: string | null;
           niveau_etudes?: string;
           nom?: string;
@@ -84,6 +87,13 @@ export type Database = {
             columns: ["contrat_id"];
             isOneToOne: false;
             referencedRelation: "contracts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agents_invited_by_user_id_fkey";
+            columns: ["invited_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {

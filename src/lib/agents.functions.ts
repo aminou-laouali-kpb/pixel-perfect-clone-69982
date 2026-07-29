@@ -58,6 +58,7 @@ export const inviteAgent = createServerFn({ method: "POST" })
           niveau_etudes: data.niveau_etudes,
           motivation: data.motivation ?? null,
           code_parrainage: code,
+          invited_by_user_id: context.userId,
         },
         redirectTo: data.redirectTo,
       },
