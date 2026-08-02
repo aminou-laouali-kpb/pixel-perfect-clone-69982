@@ -1,44 +1,18 @@
-## Objectif
+## Ce que j'ai vérifié
 
-Permettre aux commerciaux (et admins) d'ajouter un nouvel agent depuis leur tableau de bord. L'agent reçoit automatiquement un email d'invitation pour définir son mot de passe et se connecter.
+- Le serveur local répond bien en **200** et la page d'accueil est rendue complètement (aucune erreur « Missing Supabase environment variable(s) » dans le HTML servi).
+- Le fichier `.env` du projet contient bien les 6 variables attendues (`SUPABASE_*` et `VITE_SUPABASE_*`).
+- L'erreur affichée dans ta preview provient d'un **bundle de preview daté** (`index-n40VBQdO.js`), généré à un moment où les variables `VITE_SUPABASE_*` n'étaient pas injectées au build. Le code lève alors une exception au tout premier accès au client backend, ce qui fait tomber toute la page sur l'écran d'erreur.
 
-## 1. Server function `inviteAgent`
+Donc : le code est bon, c'est le build de preview qui est périmé. Un simple rechargement forcé après un nouveau build suffit normalement — mais comme le problème est déjà revenu plusieurs fois, je propose aussi un correctif pour que ça ne casse plus l'affichage entier.
 
-Nouveau fichier `src/lib/agents.functions.ts` exposant `inviteAgent` :
+## Ce que je propose de faire
 
-- `createServerFn({ method: 'POST' })` + `requireSupabaseAuth`
-- Valide les entrées avec zod : `nom`, `email`, `whatsapp`, `pays`, `niveau_etudes` (optionnel `motivation`)
-- Vérifie via `context.supabase` que le rôle de l'appelant est `commercial` ou `admin` (sinon 403)
-- Génère un `code_parrainage` unique (8 caractères alphanumériques majuscules, retry si collision)
-- Charge `supabaseAdmin` à l'intérieur du handler (`await import('@/integrations/supabase/client.server')`)
-- Appelle `supabaseAdmin.auth.admin.inviteUserByEmail(email, { data: { nom, whatsapp, pays, niveau_etudes, motivation, code_parrainage }, redirectTo: <origin>/auth })`
-- Le trigger existant `handle_new_user` crée alors automatiquement `profiles` (rôle agent) + ligne `agents` avec le code généré
-- Retourne `{ ok: true, code_parrainage }` ou erreur explicite (email déjà utilisé, etc.)
+1. **Régénérer la preview** et vérifier avec un navigateur automatisé que la page d'accueil se charge sans erreur console (URL de preview, pas seulement en local).
+2. **Rendre l'échec non bloquant** : au lieu de faire planter le rendu de toute l'application quand la configuration backend manque, afficher une bannière d'erreur claire et laisser les pages publiques (accueil, candidater, confidentialité) s'afficher normalement. Les pages qui ont réellement besoin du backend afficheront le message explicite.
+3. **Vérifier l'injection des variables au build** : confirmer que les variables `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` sont bien présentes dans le bundle produit, pour identifier si le problème vient d'un build lancé avant l'activation du backend.
 
-## 2. UI commercial — dialog "Ajouter un agent"
+## Détails techniques
 
-Dans `src/routes/_authenticated/commercial.tsx` :
-
-- Ajouter un bouton `Ajouter un agent` en haut du tableau (visible pour `commercial` et `admin`)
-- Ouvre un `<Dialog>` shadcn avec un formulaire (react-hook-form + zod) : Nom complet, Email, WhatsApp, Pays, Niveau d'études
-- Soumission via `useServerFn(inviteAgent)` + `useMutation`
-- Toast succès ("Invitation envoyée à <email>") + reset form ; toast erreur sinon
-- Après succès, invalider les requêtes pertinentes
-
-## 3. Email d'invitation
-
-L'email part automatiquement via le système d'auth Supabase (template "Invite user"). Aucune infra email custom n'est ajoutée dans ce plan — on s'appuie sur le template par défaut déjà actif. Si tu veux brander cet email aux couleurs KPB, je le proposerai en complément (setup email infra + scaffold auth templates).
-
-## 4. Sécurité
-
-- Toute la logique privilégiée est server-side ; le rôle est revérifié dans le handler
-- `supabaseAdmin` n'est jamais importé côté client
-- Le `code_parrainage` est généré server-side (l'appelant ne peut pas l'imposer)
-- RLS existantes sur `agents` / `profiles` restent inchangées
-
-## Fichiers touchés
-
-- ➕ `src/lib/agents.functions.ts`
-- ✏️ `src/routes/_authenticated/commercial.tsx` (bouton + dialog + form)
-
-Aucune migration SQL nécessaire : le trigger `handle_new_user` gère déjà la création des rows à partir du metadata d'invitation.
+- `src/integrations/supabase/client.ts` est un fichier généré et ne doit pas être modifié : le garde-fou sera ajouté côté application (un composant limite d'erreur/état dégradé autour de `AuthProvider` dans `src/routes/__root.tsx`, et un test de configuration côté client).
+- Aucun changement de schéma ni de logique métier ; uniquement du rendu et de la robustesse.
