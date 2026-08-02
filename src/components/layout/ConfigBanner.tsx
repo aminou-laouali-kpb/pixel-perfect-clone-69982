@@ -1,9 +1,10 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { CLOUD_BACKEND_UNAVAILABLE_MESSAGE } from "@/lib/supabase-config";
 
 /**
- * Non-blocking banner shown when the app was built without backend
- * configuration. Public pages keep rendering normally.
+ * Non-blocking banner shown when the app was built without Lovable Cloud
+ * backend env. Public pages keep rendering normally.
  */
 export const ConfigBanner: React.FC = () => {
   const { configError } = useAuth();
@@ -14,8 +15,7 @@ export const ConfigBanner: React.FC = () => {
       role="alert"
       className="border-b border-gold-500/40 bg-gold-500/10 px-4 py-2 text-center text-sm text-gold-200"
     >
-      La connexion au service est momentanément indisponible. Rechargez la page dans quelques
-      instants&nbsp;; les fonctionnalités de compte sont désactivées.
+      {CLOUD_BACKEND_UNAVAILABLE_MESSAGE}
     </div>
   );
 };
