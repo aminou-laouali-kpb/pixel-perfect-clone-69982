@@ -3,12 +3,14 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile, Agent } from "@/types";
 import { logger } from "@/lib/logger";
+import { isSupabaseConfigured } from "@/lib/supabase-config";
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   agent: Agent | null;
   loading: boolean;
+  configError: boolean;
   signOut: () => Promise<void>;
   refetchAuth: () => Promise<void>;
 }
@@ -20,8 +22,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [configError, setConfigError] = useState<boolean>(false);
 
   const refetchAuth = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setConfigError(true);
+      setLoading(false);
+      return;
+    }
     try {
       const {
         data: { session },
@@ -69,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
     setLoading(true);
     try {
       await supabase.auth.signOut();
@@ -81,6 +90,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setConfigError(true);
+      setLoading(false);
+      return;
+    }
     refetchAuth();
     const {
       data: { subscription },
@@ -100,7 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [refetchAuth]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, agent, loading, signOut, refetchAuth }}>
+    <AuthContext.Provider
+      value={{ user, profile, agent, loading, configError, signOut, refetchAuth }}
+    >
       {children}
     </AuthContext.Provider>
   );
