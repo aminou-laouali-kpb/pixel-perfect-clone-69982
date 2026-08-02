@@ -164,7 +164,21 @@ export const updatePlatformUser = createServerFn({ method: "POST" })
       await supabaseAdmin.auth.admin.getUserById(data.userId);
     if (existingAuthError) throw new Error(existingAuthError.message);
 
-    const previousEmail = (existingAuth.user.email ?? "").toLowerCase();
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", data.userId)
+      .maybeSingle();
+    if (existingProfileError) throw new Error(existingProfileError.message);
+
+    const previousEmails = Array.from(
+      new Set(
+        [existingAuth.user.email, existingProfile?.email]
+          .filter((value): value is string => Boolean(value))
+          .map((value) => value.toLowerCase()),
+      ),
+    );
+    const nextEmail = data.email.toLowerCase();
 
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
       email: data.email,
@@ -191,11 +205,14 @@ export const updatePlatformUser = createServerFn({ method: "POST" })
     }
 
     // Keep round-robin commercial matching in sync when email changes.
-    if (previousEmail && previousEmail !== data.email) {
+    // Update every known previous email variant so a retry after a partial
+    // auth/profile update can still repair a stale rr_state row.
+    for (const previousEmail of previousEmails) {
+      if (previousEmail === nextEmail) continue;
       const { error: rrError } = await supabaseAdmin
         .from("rr_state")
-        .update({ email: data.email })
-        .eq("email", previousEmail);
+        .update({ email: nextEmail })
+        .ilike("email", previousEmail);
       if (rrError) throw new Error(rrError.message);
     }
 

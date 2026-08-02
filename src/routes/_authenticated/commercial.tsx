@@ -476,8 +476,16 @@ const CommercialPage: React.FC = () => {
 
   // Commercials list is derived from rr_state so admin changes reflect everywhere.
   const commercialNames = rrStates.map((rr) => rr.commercial);
-  // Leads are already scoped by RLS for commercials; only apply UI tabs for admin.
-  const visibleLeads = leads;
+  // For commercials, RLS on rr_state only returns the row matching their profile email.
+  // Always re-filter by assignment: a promoted commercial may still have an agents row,
+  // and without this filter agent-scoped SELECT policies can leak unrelated leads.
+  const myCommercialName = !isAdmin ? (rrStates[0]?.commercial ?? null) : null;
+  const visibleLeads = isAdmin
+    ? leads
+    : myCommercialName
+      ? leads.filter((lead) => lead.assigned_to === myCommercialName)
+      : [];
+  const missingRoundRobinLink = !isAdmin && !myCommercialName;
 
   // Filter leads: by commercial (admin tabs), by status, and by free-text search.
   const search = searchTerm.trim().toLowerCase();
@@ -559,6 +567,15 @@ const CommercialPage: React.FC = () => {
               leadsCounts={getLeadsCountsMap()}
               nextCommercial={nextCommercial}
             />
+          </div>
+        )}
+
+        {missingRoundRobinLink && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Votre compte commercial n&apos;est pas lié au round-robin (email profil ≠ email dans
+            rr_state). Demandez à un admin d&apos;aligner l&apos;email dans{" "}
+            <span className="font-semibold">Admin → Commerciaux</span> pour afficher votre
+            portefeuille de leads.
           </div>
         )}
 

@@ -72,10 +72,24 @@ export const inviteAgent = createServerFn({ method: "POST" })
       throw new Error(msg);
     }
 
+    const invitedUserId = invited?.user?.id ?? null;
+
+    // Belt-and-suspenders: ensure the inviter link is set even if the trigger
+    // missed invited_by_user_id (older DB) or metadata was stripped.
+    if (invitedUserId) {
+      const { error: linkErr } = await supabaseAdmin
+        .from("agents")
+        .update({ invited_by_user_id: context.userId })
+        .eq("id", invitedUserId);
+      if (linkErr) {
+        console.error("[inviteAgent] failed to set invited_by_user_id", linkErr.message);
+      }
+    }
+
     return {
       ok: true as const,
       code_parrainage: code,
-      user_id: invited?.user?.id ?? null,
+      user_id: invitedUserId,
       email: data.email,
     };
   });
