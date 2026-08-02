@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/useAuth";
 import NavBar from "@/components/layout/NavBar";
+import ConfigBanner from "@/components/layout/ConfigBanner";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -149,6 +150,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <div className="min-h-screen flex flex-col bg-navy-950 text-white">
+          <ConfigBanner />
           <NavBar />
           <main id="main-content" className="flex-1 flex flex-col">
             <Outlet />
