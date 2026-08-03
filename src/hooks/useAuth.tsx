@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { Profile, Agent } from "@/types";
 import { logger } from "@/lib/logger";
-import { isSupabaseConfigured } from "@/lib/supabase-config";
+import { ensureRuntimeSupabaseConfig } from "@/lib/supabase-config";
 
 interface AuthContextType {
   user: User | null;
@@ -25,11 +25,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [configError, setConfigError] = useState<boolean>(false);
 
   const refetchAuth = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!(await ensureRuntimeSupabaseConfig())) {
       setConfigError(true);
       setLoading(false);
       return;
     }
+    setConfigError(false);
     try {
       const {
         data: { session },
@@ -77,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!isSupabaseConfigured()) return;
+    if (!(await ensureRuntimeSupabaseConfig())) return;
     setLoading(true);
     try {
       await supabase.auth.signOut();
@@ -90,26 +91,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setConfigError(true);
-      setLoading(false);
-      return;
-    }
-    refetchAuth();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        refetchAuth();
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-        setProfile(null);
-        setAgent(null);
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      const credentials = await ensureRuntimeSupabaseConfig();
+      if (cancelled) return;
+
+      if (!credentials) {
+        setConfigError(true);
         setLoading(false);
+        return;
       }
-    });
+
+      setConfigError(false);
+      await refetchAuth();
+      if (cancelled) return;
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+          refetchAuth();
+        } else if (event === "SIGNED_OUT") {
+          setUser(null);
+          setProfile(null);
+          setAgent(null);
+          setLoading(false);
+        }
+      });
+      unsubscribe = () => subscription.unsubscribe();
+    })();
+
     return () => {
-      subscription.unsubscribe();
+      cancelled = true;
+      unsubscribe?.();
     };
   }, [refetchAuth]);
 

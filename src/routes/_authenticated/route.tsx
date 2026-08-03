@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Outlet, redirect, isRedirect } from "@tanstack/react-router";
+import { supabase } from "@/lib/supabase";
+import { ensureRuntimeSupabaseConfig } from "@/lib/supabase-config";
 import type { Profile } from "@/types";
 
 export type AuthenticatedContext = {
@@ -10,24 +11,37 @@ export type AuthenticatedContext = {
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }): Promise<AuthenticatedContext> => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      throw redirect({
-        to: "/login",
-        search: { redirect: `${location.pathname}${location.search}` },
-      });
+    const loginRedirect = redirect({
+      to: "/login",
+      search: { redirect: `${location.pathname}${location.search}` },
+    });
+
+    try {
+      if (!(await ensureRuntimeSupabaseConfig())) {
+        throw loginRedirect;
+      }
+
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        throw loginRedirect;
+      }
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      return {
+        user: data.user,
+        profile: (profileData as Profile | null) ?? null,
+      };
+    } catch (error) {
+      // Any unexpected failure (missing backend config, network) must land on the
+      // login screen instead of tearing down the whole app with an error page.
+      if (isRedirect(error)) throw error;
+      throw loginRedirect;
     }
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .maybeSingle();
-
-    return {
-      user: data.user,
-      profile: (profileData as Profile | null) ?? null,
-    };
   },
   component: () => <Outlet />,
 });

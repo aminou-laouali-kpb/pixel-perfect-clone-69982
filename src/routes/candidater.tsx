@@ -8,6 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { PAYS_LIST, NIVEAUX_ETUDES, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 import { generateReferralCode } from "@/lib/referral-code";
+import {
+  CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
+  isCloudBackendConfigError,
+} from "@/lib/supabase-config";
 import { UserPlus, ArrowLeft, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 
 const candidaterSchema = z
@@ -55,6 +59,7 @@ const candidaterSchema = z
 type CandidaterFormValues = z.infer<typeof candidaterSchema>;
 
 const getErrorMessage = (error: unknown) => {
+  if (isCloudBackendConfigError(error)) return CLOUD_BACKEND_UNAVAILABLE_MESSAGE;
   return error instanceof Error ? error.message : "Une erreur est survenue lors de l'inscription.";
 };
 
