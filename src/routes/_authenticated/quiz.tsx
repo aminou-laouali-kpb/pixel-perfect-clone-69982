@@ -54,7 +54,7 @@ const QuizPage: React.FC = () => {
     try {
       const finalScore = await quiz.handleNextQuestion();
       if (finalScore !== null) {
-        navigate({ to: `/resultat?score=${finalScore}` });
+        navigate({ to: "/resultat" });
       }
     } catch {
       setHasSubmitted(false);

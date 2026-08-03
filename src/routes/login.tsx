@@ -9,8 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { logger } from "@/lib/logger";
 import {
   CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
+  ensureRuntimeSupabaseConfig,
   isCloudBackendConfigError,
-  isSupabaseConfigured,
 } from "@/lib/supabase-config";
 import { LogIn, KeyRound, Mail, Loader2, ArrowLeft } from "lucide-react";
 
@@ -27,7 +27,6 @@ const LoginPage: React.FC = () => {
   const { redirect: redirectTo } = Route.useSearch();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const backendReady = isSupabaseConfigured() && !configError;
 
   const {
     register,
@@ -52,7 +51,9 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    if (!backendReady) {
+    // The config may still be resolving from the server on a bundle built
+    // without VITE_SUPABASE_*, so retry the lookup before giving up.
+    if (!(await ensureRuntimeSupabaseConfig())) {
       setErrorMsg(CLOUD_BACKEND_UNAVAILABLE_MESSAGE);
       setIsSubmitting(false);
       return;
@@ -126,7 +127,7 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {(errorMsg || !backendReady) && (
+        {(errorMsg || configError) && (
           <div
             role="alert"
             className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm"
@@ -205,7 +206,7 @@ const LoginPage: React.FC = () => {
           <div>
             <button
               type="submit"
-              disabled={isSubmitting || !backendReady}
+              disabled={isSubmitting}
               className="w-full flex justify-center items-center rounded-xl bg-gold-500 py-3 text-sm font-bold text-navy-950 hover:bg-gold-400 transition-all hover:scale-[1.01] motion-reduce:hover:scale-100 shadow-[0_0_20px_rgba(217,161,16,0.2)] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (

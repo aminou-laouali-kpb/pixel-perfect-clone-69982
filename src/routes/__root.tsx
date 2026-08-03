@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { getPublicBackendConfig } from "@/lib/config.functions";
+import { setRuntimeSupabaseConfig, type PublicBackendConfig } from "@/lib/supabase-config";
 import { AuthProvider } from "@/hooks/useAuth";
 import NavBar from "@/components/layout/NavBar";
 import ConfigBanner from "@/components/layout/ConfigBanner";
@@ -77,6 +79,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Resolved on the server, serialized into the SSR payload, then replayed on the
+  // client so the browser keeps working even when the bundle was built without
+  // VITE_SUPABASE_*.
+  loader: async (): Promise<{ publicConfig: PublicBackendConfig | null }> => {
+    try {
+      const publicConfig = await getPublicBackendConfig();
+      setRuntimeSupabaseConfig(publicConfig);
+      return { publicConfig };
+    } catch {
+      return { publicConfig: null };
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -145,6 +159,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { publicConfig } = Route.useLoaderData();
+
+  // Applied during render (not in an effect) so descendants that touch the
+  // Supabase client on their first render already see the credentials.
+  setRuntimeSupabaseConfig(publicConfig);
 
   return (
     <QueryClientProvider client={queryClient}>

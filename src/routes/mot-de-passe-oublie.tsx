@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
+import {
+  CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
+  isCloudBackendConfigError,
+} from "@/lib/supabase-config";
 import { Mail, Loader2, ArrowLeft, KeyRound, CheckCircle2 } from "lucide-react";
 
 const ForgotPasswordPage: React.FC = () => {
@@ -21,7 +25,11 @@ const ForgotPasswordPage: React.FC = () => {
       if (error) throw new Error(error.message);
       setSent(true);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Une erreur est survenue.");
+      if (isCloudBackendConfigError(err)) {
+        setErrorMsg(CLOUD_BACKEND_UNAVAILABLE_MESSAGE);
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : "Une erreur est survenue.");
+      }
     } finally {
       setIsSubmitting(false);
     }

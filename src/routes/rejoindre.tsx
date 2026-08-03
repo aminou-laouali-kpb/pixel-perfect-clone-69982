@@ -8,6 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { DESTINATIONS } from "@/lib/utils";
 import { PAYS_LIST } from "@/lib/constants";
 import {
+  CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
+  isCloudBackendConfigError,
+} from "@/lib/supabase-config";
+import {
   GraduationCap,
   ArrowLeft,
   Loader2,
@@ -37,6 +41,7 @@ type RejoindreFormValues = z.infer<typeof rejoindreSchema>;
 const DESTINATION_OPTIONS = [...DESTINATIONS, "Autre"];
 
 const getErrorMessage = (error: unknown) => {
+  if (isCloudBackendConfigError(error)) return CLOUD_BACKEND_UNAVAILABLE_MESSAGE;
   if (error instanceof Error) {
     if (error.message.includes("Code de parrainage")) {
       return "Ce lien de parrainage n'est pas valide. Demandez un nouveau lien à votre ambassadeur.";

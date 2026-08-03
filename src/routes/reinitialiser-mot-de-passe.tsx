@@ -7,6 +7,10 @@ import * as z from "zod";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/useToast";
 import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import {
+  CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
+  isCloudBackendConfigError,
+} from "@/lib/supabase-config";
 import { KeyRound, Loader2 } from "lucide-react";
 
 const schema = z
@@ -52,6 +56,10 @@ const ResetPasswordPage: React.FC = () => {
       showToast("Mot de passe mis à jour. Connectez-vous.", "success");
       navigate({ to: "/login", search: { redirect: undefined }, replace: true });
     } catch (err: unknown) {
+      if (isCloudBackendConfigError(err)) {
+        setErrorMsg(CLOUD_BACKEND_UNAVAILABLE_MESSAGE);
+        return;
+      }
       const message = err instanceof Error ? err.message : "Une erreur est survenue.";
       setErrorMsg(
         message.toLowerCase().includes("session")
