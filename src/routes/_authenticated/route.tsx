@@ -11,19 +11,18 @@ export type AuthenticatedContext = {
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }): Promise<AuthenticatedContext> => {
-    const loginRedirect = redirect({
-      to: "/login",
-      search: { redirect: `${location.pathname}${location.search}` },
-    });
+    // `location.search` is the parsed object, not a string: interpolating it
+    // throws and would escape the guard below, so build the target from `href`.
+    const loginRedirect = () => redirect({ to: "/login", search: { redirect: location.href } });
 
     try {
       if (!(await ensureRuntimeSupabaseConfig())) {
-        throw loginRedirect;
+        throw loginRedirect();
       }
 
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) {
-        throw loginRedirect;
+        throw loginRedirect();
       }
 
       const { data: profileData } = await supabase
@@ -40,7 +39,7 @@ export const Route = createFileRoute("/_authenticated")({
       // Any unexpected failure (missing backend config, network) must land on the
       // login screen instead of tearing down the whole app with an error page.
       if (isRedirect(error)) throw error;
-      throw loginRedirect;
+      throw loginRedirect();
     }
   },
   component: () => <Outlet />,

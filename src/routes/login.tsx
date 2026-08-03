@@ -7,6 +7,7 @@ import * as z from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { logger } from "@/lib/logger";
+import { parseLoginRedirect } from "@/lib/login-redirect";
 import {
   CLOUD_BACKEND_UNAVAILABLE_MESSAGE,
   ensureRuntimeSupabaseConfig,
@@ -77,16 +78,10 @@ const LoginPage: React.FC = () => {
         .eq("id", data.user.id)
         .single();
 
-      const safeRedirect =
-        redirectTo &&
-        redirectTo.startsWith("/") &&
-        !redirectTo.startsWith("//") &&
-        !redirectTo.includes("://")
-          ? redirectTo
-          : null;
+      const safeRedirect = parseLoginRedirect(redirectTo);
 
       if (safeRedirect) {
-        navigate({ to: safeRedirect, replace: true });
+        navigate({ ...safeRedirect, replace: true });
       } else if (profileData?.role === "commercial") {
         navigate({ to: "/commercial", replace: true });
       } else if (profileData?.role === "admin") {
